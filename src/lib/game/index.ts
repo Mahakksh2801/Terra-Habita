@@ -8,3 +8,4 @@ export * from "./placement";
 export * from "./promotion";
 export * from "./completion";
 export * from "./nightly";
+export * from "./names";
