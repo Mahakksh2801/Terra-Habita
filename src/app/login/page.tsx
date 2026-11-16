@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { auth, oauthProviders, signIn } from "@/auth";
+import { AuthError } from "next-auth";
+import { auth, loginOptions, signIn } from "@/auth";
 
 export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   if (await auth()) redirect("/dashboard");
@@ -7,17 +8,39 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   return (
     <div className="mx-auto max-w-sm space-y-6">
       <h1 className="text-2xl font-bold">Sign in</h1>
-      <p className="text-muted">We&apos;ll email you a link. No password needed, and new accounts are created automatically.</p>
       {error && (
         <p role="alert" className="rounded-md border border-ruined p-3 text-ruined">
-          That sign-in link didn&apos;t work. It may have expired, so please request a new one.
+          {error === "AccessDenied"
+            ? "This Terra Habita is private, and that account isn't on its list."
+            : "That sign-in didn't work. Links expire, so please try again."}
         </p>
       )}
+      {loginOptions.oauth.map((p) => (
+        <form
+          key={p.id}
+          action={async () => {
+            "use server";
+            await signIn(p.id, { redirectTo: "/dashboard" });
+          }}
+        >
+          <button className="w-full rounded-md bg-accent px-4 py-2 font-medium text-accent-ink">Continue with {p.name}</button>
+        </form>
+      ))}
+      {loginOptions.emailProviderId && (
       <form
         className="space-y-3"
         action={async (form: FormData) => {
           "use server";
-          await signIn("nodemailer", { email: String(form.get("email") ?? ""), redirectTo: "/dashboard", redirect: false });
+          try {
+            await signIn(loginOptions.emailProviderId!, {
+              email: String(form.get("email") ?? ""),
+              redirectTo: "/dashboard",
+              redirect: false,
+            });
+          } catch (e) {
+            // Same page either way, so the form never reveals which emails are allowed.
+            if (!(e instanceof AuthError && e.type === "AccessDenied")) throw e;
+          }
           redirect("/login/check-email");
         }}
       >
@@ -30,19 +53,12 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
           autoComplete="email"
           className="w-full rounded-md border border-line bg-surface px-3 py-2"
         />
-        <button className="w-full rounded-md bg-accent px-4 py-2 font-medium text-accent-ink">Email me a sign-in link</button>
+        <p className="text-sm text-muted">We&apos;ll email you a one-time link. No password needed.</p>
+        <button className={`w-full rounded-md px-4 py-2 font-medium ${loginOptions.oauth.length ? "border border-line bg-surface" : "bg-accent text-accent-ink"}`}>
+          Email me a sign-in link
+        </button>
       </form>
-      {oauthProviders.map((p) => (
-        <form
-          key={p.id}
-          action={async () => {
-            "use server";
-            await signIn(p.id, { redirectTo: "/dashboard" });
-          }}
-        >
-          <button className="w-full rounded-md border border-line bg-surface px-4 py-2 font-medium">Continue with {p.name}</button>
-        </form>
-      ))}
+      )}
     </div>
   );
 }

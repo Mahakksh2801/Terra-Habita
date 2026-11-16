@@ -13,7 +13,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "postinstall": "prisma generate",
-    "test:db": "dotenv -e .env.test -- sh -c 'prisma migrate deploy >/dev/null && vitest run --project db'"
+    "test:db": "dotenv -e .env.test -- sh -c 'prisma migrate deploy >/dev/null && vitest run --project db'",
+    "vercel-build": "prisma generate && sh -c 'DATABASE_URL=\"${DATABASE_URL_UNPOOLED:-$DATABASE_URL}\" prisma migrate deploy' && next build"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",

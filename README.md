@@ -18,8 +18,11 @@ npx prisma migrate dev        # create the schema
 npm run dev
 ```
 
-Without `EMAIL_SERVER` set, sign-in links are printed to the dev server console instead of emailed.
+Without `EMAIL_SERVER` or `AUTH_RESEND_KEY` set, sign-in links are printed to the dev server console instead of emailed.
 Set `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` to also offer GitHub sign-in.
+
+The app is private: only emails in `ALLOWED_EMAILS` can sign in (anyone can in development when it's empty;
+nobody can in production). To host it for free, follow [docs/deploy.md](docs/deploy.md).
 
 ## Tests
 
