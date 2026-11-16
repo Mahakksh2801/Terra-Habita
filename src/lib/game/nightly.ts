@@ -1,14 +1,17 @@
 import { type LocalDate, addDays, eachDay, localDateOf } from "./dates";
-import { applyMisses, statusFor, type BuildingStatus } from "./condition";
+import { applyDamage, damageForMiss, frequencyTier, statusFor, type BuildingStatus } from "./condition";
 import { isScheduled } from "./schedule";
 
 export interface NightlyHabit {
   id: string;
   mask: number;
   createdOn: LocalDate;
-  /** Local day the habit was archived; it stops decaying from that day on. */
+  /** Local day the habit was archived; it stops being checked from that day on. */
   archivedOn: LocalDate | null;
   completed: ReadonlySet<LocalDate>;
+  /** Consecutive scheduled days missed up to lastProcessedOn. */
+  consecutiveMisses: number;
+  lastMissedOn: LocalDate | null;
 }
 
 export interface NightlyBuilding {
@@ -16,6 +19,8 @@ export interface NightlyBuilding {
   habitId: string | null;
   builtOn: LocalDate;
   condition: number;
+  /** Milestone buildings (park, district hall, landmark) are never damaged. */
+  isMilestone: boolean;
 }
 
 export interface NightlyInput {
@@ -30,46 +35,69 @@ export interface NightlyInput {
 export interface NightlyPlan {
   /** New value for the user's lastProcessedOn; unchanged when nothing is due. */
   processedThrough: LocalDate;
+  /** New per-habit miss state, for habits whose state changed. */
+  habitState: Record<string, { consecutiveMisses: number; lastMissedOn: LocalDate | null }>;
   /** Missed scheduled days per habit in the processed window. */
   missed: Record<string, LocalDate[]>;
   updates: { id: string; condition: number; status: BuildingStatus }[];
 }
 
-/** Days in the window that count as misses for a habit. */
-export function missedDays(habit: NightlyHabit, from: LocalDate, through: LocalDate): LocalDate[] {
-  return eachDay(from, addDays(through, 1)).filter(
-    (d) =>
-      d >= habit.createdOn &&
-      (habit.archivedOn === null || d < habit.archivedOn) &&
-      isScheduled(d, habit.mask) &&
-      !habit.completed.has(d),
-  );
+function isActiveDay(h: NightlyHabit, d: LocalDate): boolean {
+  return d >= h.createdOn && (h.archivedOn === null || d < h.archivedOn) && isScheduled(d, h.mask);
 }
 
 /**
- * Decay pass for one user. Safe to run as often as you like (e.g. hourly
+ * Damage pass for one user. Safe to run as often as you like (e.g. hourly
  * across all users): it only handles local days that have fully ended and
- * that it has not handled before, and catches up if runs were skipped.
- * A building only suffers for misses on days after it was built.
+ * that it has not handled before, and catches up day by day if runs were skipped.
+ *
+ * Each habit tracks its run of consecutive missed scheduled days. When the run
+ * reaches the habit's "half" step, its most recent standing building drops to
+ * 50%; at the "ruin" step, that building is ruined. Further misses repeat the
+ * cycle on the next most recent building.
  */
 export function planNightly(input: NightlyInput): NightlyPlan {
   const yesterday = addDays(localDateOf(input.now, input.timeZone), -1);
   const from = addDays(input.lastProcessedOn, 1);
-  if (from > yesterday) return { processedThrough: input.lastProcessedOn, missed: {}, updates: [] };
+  const plan: NightlyPlan = { processedThrough: input.lastProcessedOn, habitState: {}, missed: {}, updates: [] };
+  if (from > yesterday) return plan;
+  plan.processedThrough = yesterday;
 
-  const missed: Record<string, LocalDate[]> = {};
+  const condition = new Map(input.buildings.map((b) => [b.id, b.condition]));
+  const days = eachDay(from, addDays(yesterday, 1));
+
   for (const h of input.habits) {
-    const days = missedDays(h, from, yesterday);
-    if (days.length) missed[h.id] = days;
+    const tier = frequencyTier(h.mask);
+    // Newest first, so "most recent" is the first match.
+    const own = input.buildings
+      .filter((b) => b.habitId === h.id && !b.isMilestone)
+      .sort((a, b) => (a.builtOn < b.builtOn ? 1 : a.builtOn > b.builtOn ? -1 : 0));
+    let run = h.consecutiveMisses;
+    let lastMissedOn = h.lastMissedOn;
+
+    for (const d of days) {
+      if (!isActiveDay(h, d)) continue;
+      if (h.completed.has(d)) {
+        run = 0;
+        continue;
+      }
+      run++;
+      lastMissedOn = d;
+      (plan.missed[h.id] ??= []).push(d);
+      const damage = damageForMiss(run, tier);
+      if (!damage) continue;
+      // Damage always lands on the most recent building still standing.
+      const target = own.find((b) => b.builtOn < d && condition.get(b.id)! > 0);
+      if (target) condition.set(target.id, applyDamage(condition.get(target.id)!, damage));
+    }
+    if (run !== h.consecutiveMisses || lastMissedOn !== h.lastMissedOn) {
+      plan.habitState[h.id] = { consecutiveMisses: run, lastMissedOn };
+    }
   }
 
-  const updates: NightlyPlan["updates"] = [];
   for (const b of input.buildings) {
-    if (!b.habitId || !missed[b.habitId]) continue;
-    const count = missed[b.habitId].filter((d) => d > b.builtOn).length;
-    if (!count) continue;
-    const condition = applyMisses(b.condition, count);
-    if (condition !== b.condition) updates.push({ id: b.id, condition, status: statusFor(condition) });
+    const c = condition.get(b.id)!;
+    if (c !== b.condition) plan.updates.push({ id: b.id, condition: c, status: statusFor(c) });
   }
-  return { processedThrough: yesterday, missed, updates };
+  return plan;
 }

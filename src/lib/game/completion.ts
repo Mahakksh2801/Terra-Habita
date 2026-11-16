@@ -1,6 +1,6 @@
-import { BACKFILL_DAYS } from "./config";
-import { type LocalDate, daysBetween } from "./dates";
-import { applyRepair, statusFor, type BuildingStatus } from "./condition";
+import { BACKFILL_DAYS, CLEAN_STREAK_DAYS, CONDITION } from "./config";
+import { type LocalDate, addDays, daysBetween, eachDay } from "./dates";
+import { statusFor, type BuildingStatus } from "./condition";
 import { buildingTypeFor, heightTierFor, type HabitCategory } from "./buildings";
 import { type Cell, nextFreeCells } from "./placement";
 import { currentStreak, milestonesCrossed, type StreakMilestone } from "./streaks";
@@ -12,6 +12,8 @@ export interface CompletionInput {
   today: LocalDate;
   /** The habit's completed days before this completion. */
   completed: ReadonlySet<LocalDate>;
+  /** Last missed scheduled day, from the nightly job. */
+  lastMissedOn: LocalDate | null;
   /** The habit's existing buildings, across all settlements. */
   habitBuildings: ReadonlyArray<{ id: string; condition: number }>;
   /** User's lifetime completions before this one. */
@@ -43,9 +45,24 @@ export class CompletionRejected extends Error {
 }
 
 /**
+ * Has every scheduled day in the 7 days after the last miss been completed?
+ * That clean stretch is what repairs a habit's damaged buildings.
+ */
+export function cleanStreakDone(
+  mask: number,
+  lastMissedOn: LocalDate | null,
+  completed: ReadonlySet<LocalDate>,
+): boolean {
+  if (!lastMissedOn) return true;
+  const window = eachDay(addDays(lastMissedOn, 1), addDays(lastMissedOn, CLEAN_STREAK_DAYS + 1));
+  return window.every((d) => !isScheduled(d, mask) || completed.has(d));
+}
+
+/**
  * Everything one completion does to the world, as a plan the caller persists
  * in a single transaction: one new building (plus any milestone buildings),
- * repairs to the habit's damaged buildings, and newly unlocked milestones.
+ * newly unlocked milestones, and, if this completion finishes a clean 7-day
+ * stretch after the last miss, full repair of the habit's damaged buildings.
  */
 export function planCompletion(input: CompletionInput): CompletionPlan {
   const { habit, date, today, completed } = input;
@@ -57,8 +74,9 @@ export function planCompletion(input: CompletionInput): CompletionPlan {
   if (completed.has(date)) throw new CompletionRejected("already_done");
 
   const before = currentStreak({ completed, mask: habit.mask, createdOn: habit.createdOn, today });
+  const withThis = new Set([...completed, date]);
   const after = currentStreak({
-    completed: new Set([...completed, date]),
+    completed: withThis,
     mask: habit.mask,
     createdOn: habit.createdOn,
     today,
@@ -75,12 +93,11 @@ export function planCompletion(input: CompletionInput): CompletionPlan {
     ...crossed.map((m, i) => ({ ...cells[i + 1], type: m.building, tier, milestone: m.type })),
   ];
 
-  const repairs = input.habitBuildings
-    .filter((b) => b.condition < 100)
-    .map((b) => {
-      const condition = applyRepair(b.condition);
-      return { id: b.id, condition, status: statusFor(condition) };
-    });
+  const repairs = cleanStreakDone(habit.mask, input.lastMissedOn, withThis)
+    ? input.habitBuildings
+        .filter((b) => b.condition < CONDITION.max)
+        .map((b) => ({ id: b.id, condition: CONDITION.max, status: statusFor(CONDITION.max) }))
+    : [];
 
   return {
     buildings,

@@ -21,3 +21,10 @@ export function isValidMask(mask: number): boolean {
 export function isScheduled(date: LocalDate, mask: number): boolean {
   return (mask & (1 << weekdayOf(date))) !== 0;
 }
+
+/** How many days a week the habit is scheduled (1–7). */
+export function daysPerWeek(mask: number): number {
+  let n = 0;
+  for (let d = 0; d < 7; d++) if (mask & (1 << d)) n++;
+  return n;
+}

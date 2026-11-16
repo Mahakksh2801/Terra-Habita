@@ -5,15 +5,32 @@
 
 export const CONDITION = {
   max: 100,
-  /** Condition lost per missed scheduled day. */
-  missPenalty: 25,
+  /** Condition after the first damaging miss ("damaged by 50%"). */
+  half: 50,
   /** At or above this a building is healthy. */
   healthyMin: 60,
-  /** At or above this (and below healthyMin) a building is decaying; below it, ruined. */
+  /** At or above this (and below healthyMin) a building is damaged; below it, ruined. */
   decayingMin: 20,
-  /** Condition a ruined building gains from one completion (decaying ones go straight to max). */
-  ruinedRepair: 40,
 } as const;
+
+/**
+ * Damage cadence by how many days a week a habit is scheduled.
+ * Counted in consecutive *scheduled* days missed.
+ *  - 5 to 7 days a week: 2 misses → most recent building at 50%, 3 → ruined.
+ *  - 1 to 4 days a week: 1 miss → 50%, 2 → ruined.
+ * If the misses continue, the cycle repeats on the next most recent building.
+ */
+export const DAMAGE = {
+  highFrequencyMinDays: 5,
+  high: { halfAt: 2, ruinAt: 3 },
+  low: { halfAt: 1, ruinAt: 2 },
+} as const;
+
+/**
+ * Damaged buildings are repaired once every scheduled day in the 7 days after
+ * the last missed day has been completed.
+ */
+export const CLEAN_STREAK_DAYS = 7;
 
 /** Per-habit streak lengths (in scheduled days) that unlock special buildings. */
 export const STREAK_MILESTONES = [

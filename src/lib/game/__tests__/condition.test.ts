@@ -1,33 +1,43 @@
 import { describe, expect, it } from "vitest";
-import { applyMisses, applyRepair, statusFor } from "../condition";
-import { CONDITION } from "../config";
+import { applyDamage, damageForMiss, frequencyTier, statusFor } from "../condition";
+import { EVERY_DAY, WEEKDAYS, maskFromWeekdays, daysPerWeek } from "../schedule";
 
-describe("statusFor thresholds", () => {
+describe("statusFor", () => {
   it.each([
-    [100, "healthy"], [60, "healthy"], [59, "decaying"], [20, "decaying"], [19, "ruined"], [0, "ruined"],
+    [100, "healthy"], [60, "healthy"], [50, "decaying"], [20, "decaying"], [0, "ruined"],
   ] as const)("%i → %s", (c, s) => expect(statusFor(c)).toBe(s));
 });
 
-describe("decay", () => {
-  it("one miss is a warning, two make it decay, four ruin it", () => {
-    expect(statusFor(applyMisses(100, 1))).toBe("healthy");
-    expect(statusFor(applyMisses(100, 2))).toBe("decaying");
-    expect(statusFor(applyMisses(100, 3))).toBe("decaying");
-    expect(statusFor(applyMisses(100, 4))).toBe("ruined");
+describe("frequencyTier", () => {
+  it("5, 6 and 7 days a week are high; 4 or fewer are low", () => {
+    expect(frequencyTier(EVERY_DAY)).toBe("high");
+    expect(frequencyTier(maskFromWeekdays([1, 2, 3, 4, 5, 6]))).toBe("high");
+    expect(frequencyTier(WEEKDAYS)).toBe("high");
+    expect(frequencyTier(maskFromWeekdays([1, 2, 4, 5]))).toBe("low");
+    expect(frequencyTier(maskFromWeekdays([0]))).toBe("low");
+    expect(daysPerWeek(WEEKDAYS)).toBe(5);
   });
-  it("never goes below 0", () => expect(applyMisses(10, 5)).toBe(0));
-  it("is a no-op for zero misses", () => expect(applyMisses(70, 0)).toBe(70));
-  it("is additive", () => expect(applyMisses(applyMisses(100, 1), 2)).toBe(applyMisses(100, 3)));
 });
 
-describe("repair", () => {
-  it("fully restores worn and decaying buildings", () => {
-    expect(applyRepair(75)).toBe(CONDITION.max);
-    expect(applyRepair(25)).toBe(CONDITION.max);
+describe("damageForMiss", () => {
+  it("5+ days a week: 1 miss nothing, 2 → 50%, 3 → ruined", () => {
+    expect([1, 2, 3].map((n) => damageForMiss(n, "high"))).toEqual([null, "half", "ruin"]);
   });
-  it("partially restores a ruin, so it needs two completions", () => {
-    const once = applyRepair(0);
-    expect(statusFor(once)).toBe("decaying");
-    expect(applyRepair(once)).toBe(CONDITION.max);
+  it("under 5 days a week: 1 miss → 50%, 2 → ruined", () => {
+    expect([1, 2].map((n) => damageForMiss(n, "low"))).toEqual(["half", "ruin"]);
+  });
+  it("repeats the cycle on longer absences", () => {
+    expect([4, 5, 6].map((n) => damageForMiss(n, "high"))).toEqual([null, "half", "ruin"]);
+    expect([3, 4].map((n) => damageForMiss(n, "low"))).toEqual(["half", "ruin"]);
+  });
+  it("does nothing without a miss", () => expect(damageForMiss(0, "low")).toBeNull());
+});
+
+describe("applyDamage", () => {
+  it("halves to 50 and ruins to 0", () => {
+    expect(applyDamage(100, "half")).toBe(50);
+    expect(applyDamage(50, "half")).toBe(50);
+    expect(applyDamage(50, "ruin")).toBe(0);
+    expect(applyDamage(100, null)).toBe(100);
   });
 });

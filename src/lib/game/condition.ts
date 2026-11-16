@@ -1,8 +1,9 @@
-import { CONDITION } from "./config";
+import { CONDITION, DAMAGE } from "./config";
+import { daysPerWeek } from "./schedule";
 
 export type BuildingStatus = "healthy" | "decaying" | "ruined";
-
-const clamp = (n: number) => Math.max(0, Math.min(CONDITION.max, n));
+export type FrequencyTier = "high" | "low";
+export type MissDamage = "half" | "ruin" | null;
 
 export function statusFor(condition: number): BuildingStatus {
   if (condition >= CONDITION.healthyMin) return "healthy";
@@ -10,18 +11,26 @@ export function statusFor(condition: number): BuildingStatus {
   return "ruined";
 }
 
-/** Condition after `misses` missed scheduled days. */
-export function applyMisses(condition: number, misses: number): number {
-  if (misses <= 0) return clamp(condition);
-  return clamp(condition - CONDITION.missPenalty * misses);
+/** 5+ scheduled days a week is "high", fewer is "low". */
+export function frequencyTier(mask: number): FrequencyTier {
+  return daysPerWeek(mask) >= DAMAGE.highFrequencyMinDays ? "high" : "low";
 }
 
 /**
- * Condition after one completion of the building's habit.
- * Healthy and decaying buildings are fully restored; ruined ones recover
- * partially, so bringing back a ruin takes more than one day.
+ * What the n-th consecutive missed scheduled day (1-based) does.
+ * The cadence repeats, so a long absence works through older buildings.
  */
-export function applyRepair(condition: number): number {
-  if (statusFor(condition) === "ruined") return clamp(condition + CONDITION.ruinedRepair);
-  return CONDITION.max;
+export function damageForMiss(consecutiveMisses: number, tier: FrequencyTier): MissDamage {
+  if (consecutiveMisses < 1) return null;
+  const { halfAt, ruinAt } = DAMAGE[tier];
+  const pos = ((consecutiveMisses - 1) % ruinAt) + 1;
+  if (pos === halfAt) return "half";
+  if (pos === ruinAt) return "ruin";
+  return null;
+}
+
+export function applyDamage(condition: number, damage: MissDamage): number {
+  if (damage === "ruin") return 0;
+  if (damage === "half") return Math.min(condition, CONDITION.half);
+  return condition;
 }
