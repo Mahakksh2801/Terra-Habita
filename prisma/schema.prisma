@@ -36,18 +36,20 @@ enum BuildingStatus {
 }
 
 model User {
-  id               String    @id @default(cuid())
-  name             String?
-  email            String?   @unique
-  emailVerified    DateTime?
-  image            String?
+  id                String    @id @default(cuid())
+  name              String?
+  email             String?   @unique
+  emailVerified     DateTime?
+  image             String?
   /// IANA timezone, e.g. "Asia/Kolkata".
-  timezone         String    @default("UTC")
+  timezone          String    @default("UTC")
+  /// False until the user (or their browser) has set the timezone.
+  timezoneConfirmed Boolean   @default(false)
   /// Last local day the decay job has processed for this user (inclusive).
-  lastProcessedOn  DateTime? @db.Date
+  lastProcessedOn   DateTime? @db.Date
   /// Denormalised lifetime completion count, drives building height tiers.
-  totalCompletions Int       @default(0)
-  createdAt        DateTime  @default(now())
+  totalCompletions  Int       @default(0)
+  createdAt         DateTime  @default(now())
 
   accounts    Account[]
   sessions    Session[]

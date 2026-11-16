@@ -1,26 +1,53 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --bg: #f6f3ea;
+  --surface: #ffffff;
+  --ink: #1d2721;
+  --muted: #56615a;
+  --line: #d9d3c4;
+  --accent: #2c6a4c;
+  --accent-ink: #ffffff;
+  --healthy: #2c6a4c;
+  --decaying: #8a5300;
+  --ruined: #a12a2a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #141a16;
+    --surface: #1c2420;
+    --ink: #ecefe9;
+    --muted: #a7b2aa;
+    --line: #34403a;
+    --accent: #6cc79a;
+    --accent-ink: #0e1a13;
+    --healthy: #6cc79a;
+    --decaying: #f0b35a;
+    --ruined: #f08a8a;
   }
 }
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-healthy: var(--healthy);
+  --color-decaying: var(--decaying);
+  --color-ruined: var(--ruined);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
 }
