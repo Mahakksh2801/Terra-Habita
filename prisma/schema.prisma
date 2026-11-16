@@ -1,0 +1,202 @@
+// Terra Habita data model.
+// Local calendar days (completions, build dates, milestones) are stored as
+// DATE columns and always mean a day in the user's timezone.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum HabitCategory {
+  body
+  mind
+  work
+  social
+  creative
+  home
+  other
+}
+
+enum SettlementLevel {
+  city
+  state
+  country
+  continent
+  world
+}
+
+enum BuildingStatus {
+  healthy
+  decaying
+  ruined
+}
+
+model User {
+  id               String    @id @default(cuid())
+  name             String?
+  email            String?   @unique
+  emailVerified    DateTime?
+  image            String?
+  /// IANA timezone, e.g. "Asia/Kolkata".
+  timezone         String    @default("UTC")
+  /// Last local day the decay job has processed for this user (inclusive).
+  lastProcessedOn  DateTime? @db.Date
+  /// Denormalised lifetime completion count, drives building height tiers.
+  totalCompletions Int       @default(0)
+  createdAt        DateTime  @default(now())
+
+  accounts    Account[]
+  sessions    Session[]
+  habits      Habit[]
+  settlements Settlement[]
+  milestones  Milestone[]
+}
+
+model Habit {
+  id         String        @id @default(cuid())
+  userId     String
+  name       String
+  category   HabitCategory @default(other)
+  /// 7-bit weekday mask, bit 0 = Sunday. 127 = every day.
+  frequency  Int           @default(127)
+  createdOn  DateTime      @db.Date
+  createdAt  DateTime      @default(now())
+  archivedAt DateTime?
+  archivedOn DateTime?     @db.Date
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completions Completion[]
+  buildings   Building[]
+  milestones  Milestone[]
+
+  @@index([userId, archivedAt])
+}
+
+model Completion {
+  id          String   @id @default(cuid())
+  habitId     String
+  completedOn DateTime @db.Date
+  createdAt   DateTime @default(now())
+
+  habit    Habit     @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  building Building?
+
+  @@unique([habitId, completedOn])
+}
+
+model Settlement {
+  id        String          @id @default(cuid())
+  userId    String
+  level     SettlementLevel
+  name      String
+  parentId  String?
+  foundedOn DateTime        @db.Date
+  /// Side length of the square grid (cities only).
+  gridSize  Int             @default(24)
+  /// The city new buildings go into. Exactly one per user.
+  isActive  Boolean         @default(false)
+  /// Position of this settlement as a tile on its parent's map.
+  tileX     Int?
+  tileY     Int?
+
+  // Precomputed aggregates, covering this settlement and everything below it,
+  // so higher zoom levels never scan individual buildings.
+  buildingCount Int @default(0)
+  healthyCount  Int @default(0)
+  decayingCount Int @default(0)
+  ruinedCount   Int @default(0)
+  childCount    Int @default(0)
+
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    Settlement?  @relation("SettlementTree", fields: [parentId], references: [id])
+  children  Settlement[] @relation("SettlementTree")
+  buildings Building[]
+
+  @@index([userId, level])
+  @@index([parentId])
+}
+
+model Building {
+  id               String         @id @default(cuid())
+  settlementId     String
+  habitId          String?
+  /// The completion that raised this building; null for milestone buildings.
+  completionId     String?        @unique
+  gridX            Int
+  gridY            Int
+  type             String
+  tier             Int            @default(1)
+  builtOn          DateTime       @db.Date
+  condition        Int            @default(100)
+  lastMaintainedOn DateTime       @db.Date
+  status           BuildingStatus @default(healthy)
+
+  settlement Settlement  @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  habit      Habit?      @relation(fields: [habitId], references: [id], onDelete: SetNull)
+  completion Completion? @relation(fields: [completionId], references: [id], onDelete: Cascade)
+  milestone  Milestone?
+
+  @@unique([settlementId, gridX, gridY])
+  @@index([habitId])
+  @@index([settlementId, status])
+}
+
+model Milestone {
+  id              String    @id @default(cuid())
+  userId          String
+  habitId         String?
+  /// e.g. "streak_7", "streak_30", "streak_100".
+  type            String
+  /// First day of the streak that earned it; one award per streak run.
+  streakStartedOn DateTime? @db.Date
+  unlockedOn      DateTime  @db.Date
+  buildingId      String?   @unique
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habit    Habit?    @relation(fields: [habitId], references: [id], onDelete: SetNull)
+  building Building? @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+
+  @@unique([habitId, type, streakStartedOn])
+  @@index([userId])
+}
+
+// ---- Auth.js (NextAuth) adapter models ----
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
