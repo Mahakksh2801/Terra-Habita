@@ -15,6 +15,17 @@ All numbers live in `src/lib/game/config.ts`. Rules are pure functions in
 - Only scheduled days can be missed or extend a streak. Completing on an
   unscheduled day still builds, but does not count toward streak milestones.
 
+### "Any N days a week" habits (added 2026-11-18)
+- A habit can instead be "any N days a week" (1 to 6), for example the gym 4 days a week on whichever days suit.
+- Any day counts. Weeks run Monday to Sunday in the user's timezone.
+- When a week ends (Sunday midnight), each day short of N counts as one more miss in a row,
+  and the usual damage table applies: N of 5 or more is the "5, 6 or 7 days" row, N of 4 or fewer is the other row.
+  Example for 4 a week: 3 days done is 1 miss (newest building to 50%), 2 days done is 2 misses (ruined).
+- Weeks in progress never count. A habit created mid-week only owes the days it existed for.
+- Repair: damaged buildings are repaired once N days are done in the 7 days after the week that fell short.
+- Streak (for milestones): all completions in the current unbroken run of weeks. A finished week
+  that fell short of its target breaks the run.
+
 ## Completing a habit
 - Today only (no backfill). One completion per habit per day.
 - Always places one building at the next free cell, spiralling out from the city centre.

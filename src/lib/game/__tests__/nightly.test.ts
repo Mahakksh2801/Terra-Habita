@@ -117,3 +117,87 @@ describe("bookkeeping", () => {
     expect(cond(plan, "old")).toBe(0);
   });
 });
+
+describe("any N days a week habits", () => {
+  // Week under test: Mon 2026-11-16 to Sun 2026-11-22. The job runs Monday morning.
+  const monday = new Date("2026-11-23T06:00:00Z");
+  const weekly = (target: number, doneDays: string[], over: Partial<NightlyHabit> = {}): NightlyHabit => ({
+    ...habit, weeklyTarget: target, createdOn: "2026-11-01", completed: new Set(doneDays), ...over,
+  });
+  const run = (h: NightlyHabit, buildings = [older, newest]) =>
+    planNightly({ now: monday, timeZone: "UTC", lastProcessedOn: "2026-11-15", habits: [h], buildings });
+  const four = ["2026-11-16", "2026-11-17", "2026-11-19", "2026-11-21"];
+
+  it("hitting the target on any days is not a miss", () => {
+    const plan = run(weekly(4, four));
+    expect(plan.updates).toEqual([]);
+    expect(plan.missed).toEqual({});
+    expect(plan.processedThrough).toBe("2026-11-22");
+  });
+
+  it("1 day short takes the newest building to 50% (under 5 days a week)", () => {
+    const plan = run(weekly(4, four.slice(0, 3)));
+    expect(plan.updates).toEqual([{ id: "new", condition: 50, status: "decaying" }]);
+    expect(plan.habitState.h).toEqual({ consecutiveMisses: 1, lastMissedOn: "2026-11-22" });
+  });
+
+  it("2 days short ruins it", () => {
+    expect(cond(run(weekly(4, four.slice(0, 2))), "new")).toBe(0);
+  });
+
+  it("a week with nothing done keeps going to the next building", () => {
+    const plan = run(weekly(4, []));
+    expect(cond(plan, "new")).toBe(0);
+    expect(cond(plan, "old")).toBe(0);
+  });
+
+  it("5+ days a week: 1 day short is only a warning, 2 short is 50%", () => {
+    const five = ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20"];
+    expect(run(weekly(5, five.slice(0, 4))).updates).toEqual([]);
+    expect(cond(run(weekly(5, five.slice(0, 3))), "new")).toBe(50);
+  });
+
+  it("carries misses in a row across weeks", () => {
+    // Last week was 1 short (run = 1); this week 1 short again makes 2 in a row → 50% at 5 a week.
+    const h = weekly(5, ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19"], {
+      consecutiveMisses: 1, lastMissedOn: "2026-11-15",
+    });
+    expect(cond(run(h), "new")).toBe(50);
+    expect(run(h).habitState.h).toEqual({ consecutiveMisses: 2, lastMissedOn: "2026-11-22" });
+  });
+
+  it("a week that hits the target resets the run", () => {
+    const plan = run(weekly(4, four, { consecutiveMisses: 2, lastMissedOn: "2026-11-15" }));
+    expect(plan.habitState.h).toEqual({ consecutiveMisses: 0, lastMissedOn: "2026-11-15" });
+  });
+
+  it("does not judge a week before its Sunday is over", () => {
+    const saturday = new Date("2026-11-21T06:00:00Z");
+    const plan = planNightly({ now: saturday, timeZone: "UTC", lastProcessedOn: "2026-11-15", habits: [weekly(4, [])], buildings: [older, newest] });
+    expect(plan.updates).toEqual([]);
+    expect(plan.processedThrough).toBe("2026-11-20");
+  });
+
+  it("judges the week in the user's timezone", () => {
+    // 03:00Z Monday is still Sunday evening in Chicago, so the week is not over yet.
+    const early = new Date("2026-11-23T03:00:00Z");
+    const plan = planNightly({ now: early, timeZone: "America/Chicago", lastProcessedOn: "2026-11-15", habits: [weekly(4, [])], buildings: [older, newest] });
+    expect(plan.updates).toEqual([]);
+  });
+
+  it("a habit started mid-week only owes the days it existed for", () => {
+    // Created Saturday the 21st: 2 days in its first week, so a target of 4 needs only 2.
+    const h = weekly(4, ["2026-11-21", "2026-11-22"], { createdOn: "2026-11-21" });
+    expect(run(h, [b("new", "2026-11-21")]).updates).toEqual([]);
+    expect(cond(run(weekly(4, ["2026-11-21"], { createdOn: "2026-11-21" }), [b("new", "2026-11-21")]), "new")).toBe(50);
+  });
+
+  it("skips weeks that end after the habit was archived", () => {
+    expect(run(weekly(4, [], { archivedOn: "2026-11-20" })).updates).toEqual([]);
+  });
+
+  it("never damages milestone buildings", () => {
+    const park = b("park", "2026-11-12", 100, true);
+    expect(cond(run(weekly(4, []), [older, newest, park]), "park")).toBeUndefined();
+  });
+});

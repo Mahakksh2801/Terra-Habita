@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addDays, crossedLocalMidnight, daysBetween, eachDay, isLocalDate, isValidTimeZone,
-  localDateOf, startOfLocalDay, weekdayOf,
+  localDateOf, mondayOf, startOfLocalDay, weekdayOf,
 } from "../dates";
 
 describe("localDateOf", () => {
@@ -74,5 +74,15 @@ describe("crossedLocalMidnight", () => {
     const b = new Date("2026-06-10T19:00:00Z");
     expect(crossedLocalMidnight(a, b, "Asia/Kolkata")).toBe(true);
     expect(crossedLocalMidnight(a, b, "UTC")).toBe(false);
+  });
+});
+
+describe("mondayOf", () => {
+  it("finds the Monday of a Monday-to-Sunday week", () => {
+    expect(mondayOf("2026-11-16")).toBe("2026-11-16"); // Monday
+    expect(mondayOf("2026-11-18")).toBe("2026-11-16"); // Wednesday
+    expect(mondayOf("2026-11-22")).toBe("2026-11-16"); // Sunday belongs to the week before it
+    expect(mondayOf("2026-11-23")).toBe("2026-11-23");
+    expect(mondayOf("2027-01-01")).toBe("2026-12-28"); // across a year boundary
   });
 });

@@ -11,9 +11,13 @@ export function statusFor(condition: number): BuildingStatus {
   return "ruined";
 }
 
-/** 5+ scheduled days a week is "high", fewer is "low". */
-export function frequencyTier(mask: number): FrequencyTier {
-  return daysPerWeek(mask) >= DAMAGE.highFrequencyMinDays ? "high" : "low";
+/**
+ * 5+ days a week is "high", fewer is "low". A habit with a weekly target
+ * ("any 4 days") uses that target; otherwise its scheduled weekdays.
+ */
+export function frequencyTier(mask: number, weeklyTarget?: number | null): FrequencyTier {
+  const days = weeklyTarget ?? daysPerWeek(mask);
+  return days >= DAMAGE.highFrequencyMinDays ? "high" : "low";
 }
 
 /**

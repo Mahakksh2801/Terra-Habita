@@ -140,6 +140,29 @@ describe("check-off", () => {
   });
 });
 
+describe("any N days a week habits", () => {
+  it("is stored with every weekday open and a target", async () => {
+    const h = await newHabit({ name: "Gym", frequency: 0, weeklyTarget: 4 });
+    expect(h).toMatchObject({ weeklyTarget: 4, frequency: EVERY_DAY });
+    await expect(newHabit({ weeklyTarget: 7 })).rejects.toThrow();
+    await expect(newHabit({ weeklyTarget: 0, frequency: 0 })).rejects.toThrow();
+  });
+
+  it("can be switched between fixed days and a weekly target", async () => {
+    const h = await newHabit({ weeklyTarget: 3 });
+    const fixed = await updateHabit(db, userId, h.id, { name: "Run", category: "body", frequency: 0b0101010 });
+    expect(fixed).toMatchObject({ weeklyTarget: null, frequency: 0b0101010 });
+  });
+
+  it("builds on any day and shows progress for the week", async () => {
+    const h = await newHabit({ name: "Gym", weeklyTarget: 4 });
+    const r = await completeHabit(db, userId, h.id, now);
+    expect(r).toMatchObject({ ok: true, streak: 1 });
+    const t = await getToday(db, userId, now);
+    expect(t.habits[0]).toMatchObject({ weeklyTarget: 4, weekDone: 1, scheduledToday: true, doneToday: true, streak: 1 });
+  });
+});
+
 describe("today view", () => {
   it("shows scheduled habits, done state and streak in the user's day", async () => {
     const h = await newHabit();

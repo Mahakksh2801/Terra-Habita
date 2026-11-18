@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { addDays, eachDay } from "../dates";
 import { EVERY_DAY, WEEKDAYS, isScheduled, maskFromWeekdays } from "../schedule";
-import { currentStreak, longestStreak, milestonesCrossed } from "../streaks";
+import { currentStreak, currentStreakFlexible, longestStreak, milestonesCrossed } from "../streaks";
 
 const today = "2026-11-16"; // Monday
 const run = (from: string, n: number) => new Set(eachDay(from, addDays(from, n)));
@@ -55,5 +55,39 @@ describe("milestonesCrossed", () => {
   });
   it("can unlock several at once", () => {
     expect(milestonesCrossed(0, 30).map((m) => m.days)).toEqual([7, 30]);
+  });
+});
+
+describe("currentStreakFlexible (any N days a week)", () => {
+  const base = { target: 4, createdOn: "2026-10-01", today: "2026-11-18" }; // Wednesday
+  const days = (...d: string[]) => new Set(d);
+
+  it("counts every completion in the unbroken run of weeks", () => {
+    const completed = days(
+      "2026-11-16", "2026-11-17", // this week so far
+      "2026-11-09", "2026-11-11", "2026-11-13", "2026-11-14", // last week hit 4
+      "2026-11-03", "2026-11-05", "2026-11-06", // the week before fell short
+    );
+    expect(currentStreakFlexible({ ...base, completed })).toEqual({ length: 6, startedOn: "2026-11-09" });
+  });
+
+  it("a finished week that fell short breaks the run", () => {
+    const completed = days("2026-11-16", "2026-11-09", "2026-11-11", "2026-11-13");
+    expect(currentStreakFlexible({ ...base, completed })).toEqual({ length: 1, startedOn: "2026-11-16" });
+  });
+
+  it("the week in progress never breaks it", () => {
+    const completed = days("2026-11-09", "2026-11-10", "2026-11-12", "2026-11-13");
+    expect(currentStreakFlexible({ ...base, completed }).length).toBe(4);
+  });
+
+  it("is zero with nothing done", () => {
+    expect(currentStreakFlexible({ ...base, completed: days() })).toEqual({ length: 0, startedOn: null });
+  });
+
+  it("a habit started mid-week only owes the days it existed for", () => {
+    // Created Saturday the 14th: only 2 days in its first week, and it did both.
+    const completed = days("2026-11-14", "2026-11-15", "2026-11-16");
+    expect(currentStreakFlexible({ ...base, createdOn: "2026-11-14", completed }).length).toBe(3);
   });
 });

@@ -41,3 +41,12 @@ describe("applyDamage", () => {
     expect(applyDamage(100, null)).toBe(100);
   });
 });
+
+describe("frequencyTier with a weekly target", () => {
+  it("uses the target instead of the weekday mask", () => {
+    expect(frequencyTier(EVERY_DAY, 4)).toBe("low");
+    expect(frequencyTier(EVERY_DAY, 5)).toBe("high");
+    expect(frequencyTier(EVERY_DAY, 6)).toBe("high");
+    expect(frequencyTier(EVERY_DAY, null)).toBe("high");
+  });
+});

@@ -46,6 +46,7 @@ export async function completeHabit(db: Db, userId: string, habitId: string, now
             id: habit.id,
             category: habit.category as HabitCategory,
             mask: habit.frequency,
+            weeklyTarget: habit.weeklyTarget,
             createdOn: fromDbDate(habit.createdOn),
             archived: habit.archivedAt !== null,
           },

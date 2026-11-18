@@ -1,5 +1,5 @@
 import type { Db } from "@/lib/db";
-import { currentStreak, isScheduled, localDateOf, type LocalDate } from "@/lib/game";
+import { currentStreak, currentStreakFlexible, isScheduled, localDateOf, mondayOf, type LocalDate } from "@/lib/game";
 import { fromDbDate } from "@/lib/day";
 
 export interface TodayHabit {
@@ -7,6 +7,10 @@ export interface TodayHabit {
   name: string;
   category: string;
   frequency: number;
+  /** "Any N days a week" target, or null for fixed days. */
+  weeklyTarget: number | null;
+  /** Days done so far in the current Monday-to-Sunday week. */
+  weekDone: number;
   scheduledToday: boolean;
   doneToday: boolean;
   streak: number;
@@ -32,9 +36,14 @@ export async function getToday(db: Db, userId: string, now = new Date()) {
       name: h.name,
       category: h.category,
       frequency: h.frequency,
+      weeklyTarget: h.weeklyTarget,
+      weekDone: [...completed].filter((d) => d >= mondayOf(today) && d <= today).length,
       scheduledToday: isScheduled(today, h.frequency),
       doneToday: completed.has(today),
-      streak: currentStreak({ completed, mask: h.frequency, createdOn: fromDbDate(h.createdOn), today }).length,
+      streak: (h.weeklyTarget
+        ? currentStreakFlexible({ completed, target: h.weeklyTarget, createdOn: fromDbDate(h.createdOn), today })
+        : currentStreak({ completed, mask: h.frequency, createdOn: fromDbDate(h.createdOn), today })
+      ).length,
     };
   });
 

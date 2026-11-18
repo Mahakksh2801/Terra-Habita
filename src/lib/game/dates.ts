@@ -64,6 +64,11 @@ export function addDays(date: LocalDate, n: number): LocalDate {
   return new Date(toUtcMs(date) + n * DAY_MS).toISOString().slice(0, 10);
 }
 
+/** The Monday of the Monday-to-Sunday week a day falls in. */
+export function mondayOf(date: LocalDate): LocalDate {
+  return addDays(date, -((weekdayOf(date) + 6) % 7));
+}
+
 /** Whole days from a to b (positive when b is later). */
 export function daysBetween(a: LocalDate, b: LocalDate): number {
   return Math.round((toUtcMs(b) - toUtcMs(a)) / DAY_MS);

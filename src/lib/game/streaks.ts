@@ -1,5 +1,5 @@
 import { STREAK_MILESTONES } from "./config";
-import { type LocalDate, addDays } from "./dates";
+import { type LocalDate, addDays, eachDay, mondayOf } from "./dates";
 import { isScheduled } from "./schedule";
 
 export interface StreakInput {
@@ -31,6 +31,39 @@ export function currentStreak({ completed, mask, createdOn, today }: StreakInput
     if (!completed.has(day)) break;
     length++;
     startedOn = day;
+  }
+  return { length, startedOn };
+}
+
+export interface FlexibleStreakInput {
+  completed: ReadonlySet<LocalDate>;
+  /** Days wanted per Monday-to-Sunday week. */
+  target: number;
+  createdOn: LocalDate;
+  today: LocalDate;
+}
+
+/**
+ * Current streak for an "any N days a week" habit: every completion in the
+ * current unbroken run of weeks. This week never breaks the run while it is
+ * still going; a finished week that fell short of its target does. The first
+ * week only needs as many days as the habit existed for.
+ */
+export function currentStreakFlexible({ completed, target, createdOn, today }: FlexibleStreakInput): Streak {
+  const thisMonday = mondayOf(today);
+  const doneIn = (from: LocalDate, to: LocalDate) =>
+    eachDay(from < createdOn ? createdOn : from, addDays(to, 1)).filter((d) => completed.has(d));
+
+  const run = doneIn(thisMonday, today);
+  let length = run.length;
+  let startedOn: LocalDate | null = run[0] ?? null;
+
+  for (let monday = addDays(thisMonday, -7); addDays(monday, 6) >= createdOn; monday = addDays(monday, -7)) {
+    const available = eachDay(monday < createdOn ? createdOn : monday, addDays(monday, 7)).length;
+    const done = doneIn(monday, addDays(monday, 6));
+    if (done.length < Math.min(target, available)) break;
+    length += done.length;
+    startedOn = done[0];
   }
   return { length, startedOn };
 }

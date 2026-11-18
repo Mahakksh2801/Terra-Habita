@@ -17,7 +17,9 @@ function Row({ habit, onToggle }: { habit: TodayHabit; onToggle: (h: TodayHabit,
       />
       <label htmlFor={id} className="flex-1 cursor-pointer">
         <span className={habit.doneToday ? "text-muted line-through" : ""}>{habit.name}</span>
-        <span className="block text-sm text-muted">{habit.category}</span>
+        <span className="block text-sm text-muted">
+          {habit.weeklyTarget ? `${habit.weekDone} of ${habit.weeklyTarget} days this week` : habit.category}
+        </span>
       </label>
       <span className="text-sm text-muted" aria-label={`${habit.streak} day streak`}>
         {habit.streak > 0 ? `🔥 ${habit.streak}` : ""}
