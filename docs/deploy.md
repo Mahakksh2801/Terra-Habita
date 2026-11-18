@@ -15,9 +15,9 @@ Merge the open pull request into `main` on GitHub. Vercel deploys whatever is on
    Below it's called `YOUR_URL`.
 
 ## 3. Add the free database
-1. In the project, open the **Storage** tab → **Create Database** → **Neon** (Serverless Postgres) → free plan.
+1. In the project, open the **Storage** tab → **Create Database** → **Neon** or **Prisma Postgres**, free plan. Either works.
 2. Pick the region closest to you (e.g. US East), and connect it to the **terra-habita** project for all environments.
-   This adds `DATABASE_URL` and `DATABASE_URL_UNPOOLED` automatically.
+   This adds `DATABASE_URL` (and for Neon `DATABASE_URL_UNPOOLED`) automatically.
 
 ## 4. Create the GitHub sign-in app
 1. Go to <https://github.com/settings/applications/new>.
