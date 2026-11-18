@@ -22,6 +22,8 @@ const REJECTED: Record<string, string> = {
   too_old: "You can only check off today.",
 };
 
+const withArticle = (word: string) => `${/^[aeiou]/i.test(word) ? "an" : "a"} ${word}`;
+
 export async function toggleHabit(habitId: string, done: boolean): Promise<{ ok: boolean; message: string }> {
   const userId = await requireUserId();
   if (!done) {
@@ -33,8 +35,8 @@ export async function toggleHabit(habitId: string, done: boolean): Promise<{ ok:
   revalidatePath("/dashboard");
   if (!r.ok) return { ok: false, message: REJECTED[r.reason] ?? "Couldn't check that off." };
   const [main, ...extra] = r.built;
-  const parts = [`Built a ${LABEL[main.type] ?? main.type} in ${r.settlement}.`];
-  for (const b of extra) parts.push(`Your ${r.streak}-day streak unlocked a ${LABEL[b.type] ?? b.type}!`);
+  const parts = [`Built ${withArticle(LABEL[main.type] ?? main.type)} in ${r.settlement}.`];
+  for (const b of extra) parts.push(`Your ${r.streak}-day streak unlocked ${withArticle(LABEL[b.type] ?? b.type)}!`);
   if (r.repaired) parts.push(`A clean week repaired ${r.repaired} building${r.repaired === 1 ? "" : "s"}.`);
   if (r.foundedCity) parts.push(`${r.settlement} is full. You founded ${r.foundedCity}!`);
   return { ok: true, message: parts.join(" ") };
