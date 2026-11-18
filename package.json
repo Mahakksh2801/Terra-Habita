@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
+    "db:seed": "tsx prisma/seed.ts",
     "db:migrate": "prisma migrate dev",
     "postinstall": "prisma generate",
     "test:db": "dotenv -e .env.test -- sh -c 'prisma migrate deploy >/dev/null && vitest run --project db'",

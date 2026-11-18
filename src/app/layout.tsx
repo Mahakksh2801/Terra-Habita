@@ -24,6 +24,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             {session ? (
               <>
                 <Link href="/dashboard" className="hover:underline">Today</Link>
+                <Link href="/map" className="hover:underline">Map</Link>
                 <Link href="/habits" className="hover:underline">Habits</Link>
                 <Link href="/settings" className="hover:underline">Settings</Link>
                 <form
@@ -40,7 +41,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             )}
           </nav>
         </header>
-        <main id="main" className="mx-auto max-w-3xl px-4 py-8">{children}</main>
+        <main id="main" className="mx-auto max-w-5xl px-4 py-8">{children}</main>
       </body>
     </html>
   );

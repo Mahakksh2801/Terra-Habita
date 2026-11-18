@@ -37,3 +37,7 @@ npm run test:db   # database layer; uses DATABASE_URL from .env.test and truncat
 - `src/server/` – database operations (habits, check-off, settlements, today view)
 - `src/app/` – pages and server actions
 - `prisma/schema.prisma` – data model
+
+## The map
+
+`/map` shows the active city as an isometric (3-D style) grid, one block per building: colour is the habit category, height is the height tier when it was built, damaged blocks are shorter with a dashed amber top, ruined ones are low grey rubble. Higher levels (state, country, continent, world) show their children as larger blocks you can click to drill in. `npm run db:seed` creates a local demo user (`demo@terra-habita.test`) with 1,540 buildings across five cities.
