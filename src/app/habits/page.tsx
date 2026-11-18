@@ -24,7 +24,7 @@ export default async function Habits() {
             <li key={h.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3">
               <div className="flex-1">
                 <p className="font-medium">{h.name}</p>
-                <p className="text-sm text-muted">{h.category} · {describeFrequency(h.frequency)}</p>
+                <p className="text-sm text-muted">{h.category} · {describeFrequency(h.frequency, h.weeklyTarget)}</p>
               </div>
               <Link href={`/habits/${h.id}/edit`} className="text-accent underline" aria-label={`Edit ${h.name}`}>Edit</Link>
               <form action={archiveHabit.bind(null, h.id, true)}>

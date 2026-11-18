@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { isValidTimeZone } from "@/lib/game";
+import { EVERY_DAY, isValidTimeZone } from "@/lib/game";
 import { requireUserId } from "@/server/session";
 import { createHabit, habitInput, setArchived, updateHabit } from "@/server/habits";
 import { completeHabit, uncompleteHabit } from "@/server/checkoff";
@@ -47,10 +47,12 @@ export type HabitFormState = { error?: string; fieldErrors?: Record<string, stri
 export async function saveHabit(_prev: HabitFormState, form: FormData): Promise<HabitFormState> {
   const userId = await requireUserId();
   const days = form.getAll("days").map(Number);
+  const flexible = form.get("mode") === "flex";
   const parsed = habitInput.safeParse({
     name: String(form.get("name") ?? ""),
     category: String(form.get("category") ?? ""),
-    frequency: days.reduce((m, d) => (Number.isInteger(d) && d >= 0 && d <= 6 ? m | (1 << d) : m), 0),
+    frequency: flexible ? EVERY_DAY : days.reduce((m, d) => (Number.isInteger(d) && d >= 0 && d <= 6 ? m | (1 << d) : m), 0),
+    weeklyTarget: flexible ? Number(form.get("target")) : null,
   });
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
   const id = form.get("id");

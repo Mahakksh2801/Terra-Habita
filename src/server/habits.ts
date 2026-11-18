@@ -1,14 +1,24 @@
 import { z } from "zod";
 import type { Db, Tx } from "@/lib/db";
-import { HABIT_CATEGORIES, isValidMask, localDateOf } from "@/lib/game";
+import { EVERY_DAY, HABIT_CATEGORIES, isValidMask, localDateOf } from "@/lib/game";
 import { toDbDate } from "@/lib/day";
 
-export const habitInput = z.object({
-  name: z.string().trim().min(1, "Give the habit a name").max(80, "Keep the name under 80 characters"),
-  category: z.enum(HABIT_CATEGORIES),
-  frequency: z.number().int().refine(isValidMask, "Pick at least one day"),
-});
-export type HabitInput = z.infer<typeof habitInput>;
+export const habitInput = z
+  .object({
+    name: z.string().trim().min(1, "Give the habit a name").max(80, "Keep the name under 80 characters"),
+    category: z.enum(HABIT_CATEGORIES),
+    /** Weekday mask for fixed-day habits. Ignored when weeklyTarget is set. */
+    frequency: z.number().int(),
+    /** "Any N days a week", 1 to 6. Leave out for fixed days. */
+    weeklyTarget: z.number().int().min(1, "Pick 1 to 6 days a week").max(6, "Pick 1 to 6 days a week").nullish(),
+  })
+  .superRefine((v, ctx) => {
+    if (!v.weeklyTarget && !isValidMask(v.frequency)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["frequency"], message: "Pick at least one day" });
+    }
+  })
+  .transform((v) => ({ ...v, weeklyTarget: v.weeklyTarget ?? null, frequency: v.weeklyTarget ? EVERY_DAY : v.frequency }));
+export type HabitInput = z.input<typeof habitInput>;
 
 export class NotFound extends Error {}
 

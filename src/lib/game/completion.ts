@@ -3,11 +3,19 @@ import { type LocalDate, addDays, daysBetween, eachDay } from "./dates";
 import { statusFor, type BuildingStatus } from "./condition";
 import { buildingTypeFor, heightTierFor, type HabitCategory } from "./buildings";
 import { type Cell, nextFreeCells } from "./placement";
-import { currentStreak, milestonesCrossed, type StreakMilestone } from "./streaks";
+import { currentStreak, currentStreakFlexible, milestonesCrossed, type StreakMilestone } from "./streaks";
 import { isScheduled } from "./schedule";
 
 export interface CompletionInput {
-  habit: { id: string; category: HabitCategory; mask: number; createdOn: LocalDate; archived: boolean };
+  habit: {
+    id: string;
+    category: HabitCategory;
+    mask: number;
+    /** "Any N days a week" target; when set, the mask is ignored for scheduling. */
+    weeklyTarget?: number | null;
+    createdOn: LocalDate;
+    archived: boolean;
+  };
   date: LocalDate;
   today: LocalDate;
   /** The habit's completed days before this completion. */
@@ -46,15 +54,19 @@ export class CompletionRejected extends Error {
 
 /**
  * Has every scheduled day in the 7 days after the last miss been completed?
+ * (For "any N days" habits: have N days in those 7 been completed?)
  * That clean stretch is what repairs a habit's damaged buildings.
  */
 export function cleanStreakDone(
   mask: number,
   lastMissedOn: LocalDate | null,
   completed: ReadonlySet<LocalDate>,
+  weeklyTarget?: number | null,
 ): boolean {
   if (!lastMissedOn) return true;
   const window = eachDay(addDays(lastMissedOn, 1), addDays(lastMissedOn, CLEAN_STREAK_DAYS + 1));
+  // "Any N days": the week after the miss just has to reach its target.
+  if (weeklyTarget) return window.filter((d) => completed.has(d)).length >= weeklyTarget;
   return window.every((d) => !isScheduled(d, mask) || completed.has(d));
 }
 
@@ -73,14 +85,13 @@ export function planCompletion(input: CompletionInput): CompletionPlan {
   if (date < habit.createdOn) throw new CompletionRejected("before_created");
   if (completed.has(date)) throw new CompletionRejected("already_done");
 
-  const before = currentStreak({ completed, mask: habit.mask, createdOn: habit.createdOn, today });
   const withThis = new Set([...completed, date]);
-  const after = currentStreak({
-    completed: withThis,
-    mask: habit.mask,
-    createdOn: habit.createdOn,
-    today,
-  });
+  const streakOf = (days: ReadonlySet<LocalDate>) =>
+    habit.weeklyTarget
+      ? currentStreakFlexible({ completed: days, target: habit.weeklyTarget, createdOn: habit.createdOn, today })
+      : currentStreak({ completed: days, mask: habit.mask, createdOn: habit.createdOn, today });
+  const before = streakOf(completed);
+  const after = streakOf(withThis);
   // A completion on an unscheduled day still builds, but cannot unlock milestones.
   const crossed = isScheduled(date, habit.mask) ? milestonesCrossed(before.length, after.length) : [];
 
@@ -93,7 +104,7 @@ export function planCompletion(input: CompletionInput): CompletionPlan {
     ...crossed.map((m, i) => ({ ...cells[i + 1], type: m.building, tier, milestone: m.type })),
   ];
 
-  const repairs = cleanStreakDone(habit.mask, input.lastMissedOn, withThis)
+  const repairs = cleanStreakDone(habit.mask, input.lastMissedOn, withThis, habit.weeklyTarget)
     ? input.habitBuildings
         .filter((b) => b.condition < CONDITION.max)
         .map((b) => ({ id: b.id, condition: CONDITION.max, status: statusFor(CONDITION.max) }))

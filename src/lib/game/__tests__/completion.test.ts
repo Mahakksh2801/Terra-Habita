@@ -97,3 +97,42 @@ describe("planCompletion", () => {
     );
   });
 });
+
+describe("any N days a week habits", () => {
+  const flexible = { id: "h", category: "body" as const, mask: EVERY_DAY, weeklyTarget: 4, createdOn: "2026-01-01", archived: false };
+  const damaged = [{ id: "a", condition: 50 }];
+
+  it("can be completed on any day and builds a building", () => {
+    const plan = planCompletion(input({ habit: flexible }));
+    expect(plan.buildings).toHaveLength(1);
+    expect(plan.streak).toBe(1);
+  });
+
+  it("repairs when the week after the last miss reaches its target", () => {
+    // Last miss Mon 9th; window Tue 10th to Mon 16th (today). 3 done + today = 4.
+    const completed = new Set(["2026-11-10", "2026-11-12", "2026-11-14"]);
+    const plan = planCompletion(input({ habit: flexible, completed, lastMissedOn: "2026-11-09", habitBuildings: damaged }));
+    expect(plan.repairs).toEqual([{ id: "a", condition: 100, status: "healthy" }]);
+  });
+
+  it("does not repair a day early", () => {
+    const completed = new Set(["2026-11-10", "2026-11-12"]);
+    const plan = planCompletion(input({ habit: flexible, completed, lastMissedOn: "2026-11-09", habitBuildings: damaged }));
+    expect(plan.repairs).toEqual([]);
+  });
+
+  it("cleanStreakDone only needs N days in the week", () => {
+    const some = new Set(["2026-11-17", "2026-11-18", "2026-11-20", "2026-11-22"]);
+    expect(cleanStreakDone(EVERY_DAY, "2026-11-15", some, 4)).toBe(true);
+    expect(cleanStreakDone(EVERY_DAY, "2026-11-15", some, 5)).toBe(false);
+    expect(cleanStreakDone(EVERY_DAY, "2026-11-15", some)).toBe(false); // an every-day habit needs all 7
+  });
+
+  it("earns the park after 7 completions in an unbroken run of weeks", () => {
+    // Last week: Mon–Thu (4, hits target). This week: Mon–Sat done before today (Sunday... use Wed 18th).
+    const completed = new Set(["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-16", "2026-11-17"]);
+    const plan = planCompletion(input({ habit: flexible, completed, today: "2026-11-18", date: "2026-11-18" }));
+    expect(plan.streak).toBe(7);
+    expect(plan.buildings.map((b) => b.type)).toEqual(["gym", "park"]);
+  });
+});

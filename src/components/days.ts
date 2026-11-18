@@ -9,7 +9,8 @@ export const DAYS = [
   { value: 0, short: "Sun", long: "Sunday" },
 ] as const;
 
-export function describeFrequency(mask: number): string {
+export function describeFrequency(mask: number, weeklyTarget?: number | null): string {
+  if (weeklyTarget) return `Any ${weeklyTarget} day${weeklyTarget === 1 ? "" : "s"} a week`;
   const on = DAYS.filter((d) => mask & (1 << d.value));
   if (on.length === 7) return "Every day";
   if (mask === 0b0111110) return "Weekdays";

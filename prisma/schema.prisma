@@ -65,6 +65,9 @@ model Habit {
   category          HabitCategory @default(other)
   /// 7-bit weekday mask, bit 0 = Sunday. 127 = every day.
   frequency         Int           @default(127)
+  /// "Any N days a week" (1-6). When set, any weekday counts and each
+  /// Monday-to-Sunday week is judged against this target; frequency stays 127.
+  weeklyTarget      Int?
   createdOn         DateTime      @db.Date
   createdAt         DateTime      @default(now())
   archivedAt        DateTime?
