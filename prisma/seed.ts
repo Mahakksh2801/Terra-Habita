@@ -70,6 +70,32 @@ async function main() {
     },
   });
 
+  // Recent completions for the stats heatmap (about 80% of days, per habit).
+  const today = new Date();
+  const recent = [];
+  for (const [i, h] of habits.entries()) {
+    for (let back = 1; back <= 182; back++) {
+      if ((back * 7 + i * 3) % 10 < 2) continue;
+      recent.push({ habitId: h.id, completedOn: new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - back)) });
+    }
+  }
+  await prisma.completion.createMany({ data: recent, skipDuplicates: true });
+
+  // One of each milestone in the growing city, on free cells.
+  const active = await prisma.settlement.findFirstOrThrow({ where: { userId: user.id, isActive: true } });
+  // Front-most free cells, so the demo milestones are easy to see.
+  const free = grid.slice(sizes[sizes.length - 1]).sort((a, b) => b.x + b.y - (a.x + a.y)).filter((c) => c.x + c.y <= 30);
+  const kinds = [["streak_7", "park"], ["streak_30", "district_hall"], ["streak_100", "landmark"]] as const;
+  for (const [i, [type, building]] of kinds.entries()) {
+    const cell = free[i * 2];
+    const b = await prisma.building.create({
+      data: { settlementId: active.id, habitId: habits[0].id, gridX: cell.x, gridY: cell.y, type: building, tier: 1, builtOn: day(300), lastMaintainedOn: day(300) },
+    });
+    await prisma.milestone.create({ data: { userId: user.id, habitId: habits[0].id, type, unlockedOn: day(300), streakStartedOn: day(200 + i), buildingId: b.id } });
+  }
+  await prisma.settlement.update({ where: { id: active.id }, data: { buildingCount: { increment: 3 }, healthyCount: { increment: 3 } } });
+  await prisma.settlement.update({ where: { id: state.id }, data: { buildingCount: { increment: 3 }, healthyCount: { increment: 3 } } });
+
   // A local-only sign-in token so the demo can be opened without email.
   if (process.env.NODE_ENV !== "production") {
     await prisma.session.create({ data: { sessionToken: "demo-session-token", userId: user.id, expires: new Date(Date.now() + 7 * 864e5) } });
