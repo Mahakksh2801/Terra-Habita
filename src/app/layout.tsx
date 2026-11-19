@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { auth, signOut } from "@/auth";
 import "./globals.css";
@@ -6,6 +6,14 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Terra Habita",
   description: "Grow a city, then a world, one habit at a time.",
+  icons: { icon: "/icon-192.png", apple: "/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "Terra Habita", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1e3a2c",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
