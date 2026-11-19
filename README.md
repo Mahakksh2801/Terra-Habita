@@ -41,3 +41,7 @@ npm run test:db   # database layer; uses DATABASE_URL from .env.test and truncat
 ## The map
 
 `/map` shows the active city as an isometric (3-D style) grid, one block per building: colour is the habit category, height is the height tier when it was built, damaged blocks are shorter with a dashed amber top, ruined ones are low grey rubble. Higher levels (state, country, continent, world) show their children as larger blocks you can click to drill in. `npm run db:seed` creates a local demo user (`demo@terra-habita.test`) with 1,540 buildings across five cities.
+
+## Installing on a phone or laptop
+
+The site is an installable web app (manifest, icons, standalone display). Phone: open it, then Share → Add to Home Screen (iPhone Safari) or ⋮ → Install app (Android Chrome). Laptop: in Chrome or Edge, use the install icon in the address bar.
