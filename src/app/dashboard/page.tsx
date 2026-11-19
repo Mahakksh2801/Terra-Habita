@@ -36,7 +36,7 @@ export default async function Dashboard() {
         <h2 id="city" className="sr-only">Your settlement</h2>
         <div className="rounded-lg border border-line bg-surface p-4">
           <p className="text-sm text-muted">Active city</p>
-          <p className="text-lg font-semibold">{t.city?.name ?? "Not founded yet"}</p>
+          <p className="text-lg font-semibold">{t.city ? <Link href="/map" className="underline">{t.city.name}</Link> : "Not founded yet"}</p>
           <p className="text-sm text-muted">{t.city ? `${t.city.buildingCount} building${t.city.buildingCount === 1 ? "" : "s"}` : "Founded by your first check-off"}</p>
         </div>
         <div className="rounded-lg border border-line bg-surface p-4">
