@@ -67,3 +67,17 @@ export async function setArchived(db: Db, userId: string, habitId: string, archi
         { archivedAt: null, archivedOn: null, consecutiveMisses: 0 },
   });
 }
+
+/**
+ * Permanently remove a habit and its completion history. Buildings it already
+ * raised stay in the city (they were earned) but no longer belong to a habit,
+ * so they are never damaged again. Milestones it earned stay too.
+ */
+export async function removeHabit(db: Db, userId: string, habitId: string) {
+  await db.$transaction(async (tx) => {
+    await ownedHabit(tx, userId, habitId);
+    // Detach buildings from their completions first, or deleting the completions would delete the buildings.
+    await tx.building.updateMany({ where: { habitId }, data: { completionId: null } });
+    await tx.habit.delete({ where: { id: habitId } });
+  });
+}

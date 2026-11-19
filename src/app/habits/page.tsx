@@ -4,6 +4,7 @@ import { requireUserId } from "@/server/session";
 import { listHabits } from "@/server/habits";
 import { archiveHabit } from "@/app/actions";
 import { describeFrequency } from "@/components/days";
+import { RemoveHabit } from "@/components/RemoveHabit";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default async function Habits() {
               <form action={archiveHabit.bind(null, h.id, true)}>
                 <button className="text-muted underline" aria-label={`Archive ${h.name}`}>Archive</button>
               </form>
+              <RemoveHabit id={h.id} name={h.name} />
             </li>
           ))}
         </ul>
@@ -43,11 +45,12 @@ export default async function Habits() {
           <p className="text-sm text-muted">Archived habits keep their buildings, which stop being damaged.</p>
           <ul className="space-y-2">
             {archived.map((h) => (
-              <li key={h.id} className="flex items-center gap-3 rounded-lg border border-line px-4 py-3">
+              <li key={h.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-line px-4 py-3">
                 <p className="flex-1 text-muted">{h.name}</p>
                 <form action={archiveHabit.bind(null, h.id, false)}>
                   <button className="text-accent underline" aria-label={`Restore ${h.name}`}>Restore</button>
                 </form>
+                <RemoveHabit id={h.id} name={h.name} />
               </li>
             ))}
           </ul>

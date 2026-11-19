@@ -76,7 +76,7 @@ export async function getMap(db: Db, userId: string, id?: string): Promise<MapVi
   if (node.level === "city") {
     const buildings = await db.building.findMany({
       where: { settlementId: node.id },
-      include: { habit: { select: { name: true } } },
+      include: { habit: { select: { name: true } }, milestone: { select: { id: true } } },
     });
     const items: MapItem[] = buildings.map((b) => ({
       id: b.id,
@@ -86,7 +86,7 @@ export async function getMap(db: Db, userId: string, id?: string): Promise<MapVi
       tier: b.tier,
       status: b.status,
       label: `${b.type.replace(/_/g, " ")}`,
-      detail: `${b.habit?.name ?? "Milestone"}, built ${fromDbDate(b.builtOn)}${b.status === "healthy" ? "" : `, ${b.status === "ruined" ? "ruined" : "damaged"} (${b.condition}%)`}`,
+      detail: `${b.habit?.name ?? (b.milestone ? "Milestone" : "Removed habit")}, built ${fromDbDate(b.builtOn)}${b.status === "healthy" ? "" : `, ${b.status === "ruined" ? "ruined" : "damaged"} (${b.condition}%)`}`,
     }));
     return { id: node.id, level: node.level, name: node.name, trail, gridW: node.gridSize || CITY_GRID_SIZE, gridH: node.gridSize || CITY_GRID_SIZE, items, totals, childCount: 0 };
   }

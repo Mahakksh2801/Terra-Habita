@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { EVERY_DAY, PROMOTION_THRESHOLD } from "@/lib/game";
 import { toDbDate } from "@/lib/day";
-import { createHabit, listHabits, setArchived, updateHabit } from "../habits";
+import { createHabit, listHabits, removeHabit, setArchived, updateHabit } from "../habits";
 import { completeHabit, uncompleteHabit } from "../checkoff";
 import { getToday } from "../today";
 
@@ -175,5 +175,31 @@ describe("today view", () => {
       ["Gym Mondays", false, false, 0],
     ]);
     expect(t.city).toMatchObject({ name: "Aurelia", buildingCount: 1 });
+  });
+});
+
+describe("removing a habit", () => {
+  it("deletes the habit and its history but keeps the buildings it raised", async () => {
+    const keep = await newHabit({ name: "Keep" });
+    const gone = await newHabit({ name: "Gone", category: "mind" });
+    await completeHabit(db, userId, gone.id, now);
+    await completeHabit(db, userId, keep.id, now);
+    expect(await db.building.count()).toBe(2);
+
+    await removeHabit(db, userId, gone.id);
+
+    expect((await listHabits(db, userId)).map((h) => h.name)).toEqual(["Keep"]);
+    expect(await db.completion.count({ where: { habitId: gone.id } })).toBe(0);
+    expect(await db.building.count()).toBe(2); // both buildings stay
+    expect(await db.building.count({ where: { habitId: null } })).toBe(1);
+    const city = await db.settlement.findFirstOrThrow({ where: { userId } });
+    expect(city.buildingCount).toBe(2);
+  });
+
+  it("refuses to remove someone else's habit", async () => {
+    const other = await db.user.create({ data: { email: "o@example.com", timezone: "UTC" } });
+    const h = await createHabit(db, other.id, { name: "Theirs", category: "body", frequency: EVERY_DAY }, now);
+    await expect(removeHabit(db, userId, h.id)).rejects.toThrow();
+    expect(await db.habit.count({ where: { id: h.id } })).toBe(1);
   });
 });
