@@ -10,3 +10,4 @@ export * from "./completion";
 export * from "./nightly";
 export * from "./names";
 export * from "./iso";
+export * from "./stats";

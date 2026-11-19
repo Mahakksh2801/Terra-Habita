@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo, useRef, useState } from "react";
-import { boxFaces, buildingHeight, contentBounds, depth, groundTile, rightFaceWindows, roofPlate, TIER_HEIGHT, BASE_HEIGHT } from "@/lib/game/iso";
+import { boxFaces, buildingHeight, contentBounds, depth, groundTile, project, rightFaceWindows, roofPlate, TIER_HEIGHT, BASE_HEIGHT } from "@/lib/game/iso";
 import type { MapItem, MapView } from "@/server/map";
 
 /** Base colour per building type / region level. */
@@ -34,7 +34,67 @@ function gray(f: number): string {
   return `rgb(${v},${Math.round(v * 0.95)},${Math.round(v * 0.88)})`;
 }
 
+/** Park: a low lawn with three trees. */
+function Park({ item }: { item: MapItem }) {
+  const lawn = boxFaces(item.gx, item.gy, 4, 0.06);
+  const trees: [number, number][] = [[0.3, 0.35], [0.68, 0.3], [0.5, 0.7]];
+  return (
+    <g>
+      <title>{`park: ${item.detail}`}</title>
+      <polygon points={lawn.left} fill="#3c8a46" />
+      <polygon points={lawn.right} fill="#2f6e38" />
+      <polygon points={lawn.top} fill="#62c46c" />
+      {trees.map(([u, v], i) => {
+        const p = project(item.gx + u, item.gy + v);
+        return (
+          <g key={i}>
+            <rect x={p.x - 1} y={p.y - 10} width={2} height={7} fill="#6b4a2b" />
+            <circle cx={p.x} cy={p.y - 13} r={6} fill="#2e8b3e" />
+            <circle cx={p.x - 1.5} cy={p.y - 14.5} r={3} fill="#58b866" />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** A box stacked on another: drawn at `lift` pixels above the ground. */
+function Stack({ gx, gy, h, inset, lift, base }: { gx: number; gy: number; h: number; inset: number; lift: number; base: string }) {
+  const f = boxFaces(gx, gy, h, inset);
+  return (
+    <g transform={`translate(0 ${-lift})`}>
+      <polygon points={f.left} fill={shade(base, 0.82)} />
+      <polygon points={f.right} fill={shade(base, 0.6)} />
+      <polygon points={f.top} fill={shade(base, 1.15)} />
+    </g>
+  );
+}
+
+/** District hall: wide base, a narrower upper hall and a cap. Landmark: a gold spire tower. */
+function Monument({ item }: { item: MapItem }) {
+  const landmark = item.type === "landmark";
+  const base = BASE[item.type];
+  const h1 = landmark ? 22 : 16;
+  const h2 = landmark ? 30 : 12;
+  const h3 = landmark ? 18 : 5;
+  const top = h1 + h2;
+  const tip = project(item.gx + 0.5, item.gy + 0.5);
+  return (
+    <g>
+      <title>{`${item.label}: ${item.detail}`}</title>
+      <Stack gx={item.gx} gy={item.gy} h={h1} inset={0.08} lift={0} base={base} />
+      <Stack gx={item.gx} gy={item.gy} h={h2} inset={landmark ? 0.24 : 0.2} lift={h1} base={landmark ? base : "#e9e1d0"} />
+      <Stack gx={item.gx} gy={item.gy} h={h3} inset={landmark ? 0.36 : 0.3} lift={top} base={landmark ? base : "#b5483f"} />
+      {landmark && <polygon points={`${tip.x - 3},${tip.y - top - h3} ${tip.x + 3},${tip.y - top - h3} ${tip.x},${tip.y - top - h3 - 22}`} fill="#fff3b0" />}
+      {!landmark && <rect x={tip.x - 0.6} y={tip.y - top - h3 - 14} width={1.2} height={14} fill="#333" />}
+      {!landmark && <polygon points={`${tip.x + 0.6},${tip.y - top - h3 - 14} ${tip.x + 8},${tip.y - top - h3 - 11} ${tip.x + 0.6},${tip.y - top - h3 - 8}`} fill="#b5483f" />}
+    </g>
+  );
+}
+
 const Block = memo(function Block({ item }: { item: MapItem }) {
+  if (item.type === "park") return <Park item={item} />;
+  if (item.type === "district_hall" || item.type === "landmark") return <Monument item={item} />;
   const h = buildingHeight(item.tier, item.status);
   const f = boxFaces(item.gx, item.gy, h, item.href ? 0.06 : 0.12);
   const base = BASE[item.type] ?? "#888888";

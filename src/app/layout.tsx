@@ -26,6 +26,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 <Link href="/dashboard" className="hover:underline">Today</Link>
                 <Link href="/map" className="hover:underline">Map</Link>
                 <Link href="/habits" className="hover:underline">Habits</Link>
+                <Link href="/stats" className="hover:underline">Stats</Link>
                 <Link href="/settings" className="hover:underline">Settings</Link>
                 <form
                   action={async () => {
