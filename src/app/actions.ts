@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { EVERY_DAY, isValidTimeZone } from "@/lib/game";
 import { requireUserId } from "@/server/session";
-import { createHabit, habitInput, setArchived, updateHabit } from "@/server/habits";
+import { createHabit, habitInput, removeHabit, setArchived, updateHabit } from "@/server/habits";
 import { completeHabit, uncompleteHabit } from "@/server/checkoff";
 import { setTimezone } from "@/server/today";
 
@@ -68,6 +68,15 @@ export async function archiveHabit(habitId: string, archived: boolean) {
   await setArchived(prisma, userId, habitId, archived);
   revalidatePath("/habits");
   revalidatePath("/dashboard");
+}
+
+export async function deleteHabit(habitId: string) {
+  const userId = await requireUserId();
+  await removeHabit(prisma, userId, habitId);
+  revalidatePath("/habits");
+  revalidatePath("/dashboard");
+  revalidatePath("/map");
+  revalidatePath("/stats");
 }
 
 export async function saveTimezone(timezone: string, { auto = false } = {}) {
