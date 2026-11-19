@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/server/session";
+import { catchUp } from "@/server/nightly";
 import { getMap } from "@/server/map";
 import { IsoMap } from "@/components/IsoMap";
 
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function MapPage({ params }: { params: Promise<{ id?: string[] }> }) {
   const userId = await requireUserId();
+  await catchUp(prisma, userId);
   const { id } = await params;
   const view = await getMap(prisma, userId, id?.[0]);
 
