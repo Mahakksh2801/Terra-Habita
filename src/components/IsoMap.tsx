@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo, useRef, useState } from "react";
-import { boxFaces, buildingHeight, contentBounds, depth, groundTile, TIER_HEIGHT, BASE_HEIGHT } from "@/lib/game/iso";
+import { boxFaces, buildingHeight, contentBounds, depth, groundTile, rightFaceWindows, roofPlate, TIER_HEIGHT, BASE_HEIGHT } from "@/lib/game/iso";
 import type { MapItem, MapView } from "@/server/map";
 
 /** Base colour per building type / region level. */
@@ -40,25 +40,33 @@ const Block = memo(function Block({ item }: { item: MapItem }) {
   const base = BASE[item.type] ?? "#888888";
   const ruined = item.status === "ruined";
   const faces = ruined
-    ? { top: gray(1.15), left: gray(0.8), right: gray(0.6) }
-    : { top: shade(base, 1.15), left: shade(base, 0.85), right: shade(base, 0.62) };
+    ? { top: gray(1.1), left: gray(0.72), right: gray(0.55), roof: gray(1.3), glass: gray(1.6) }
+    : {
+        top: shade(base, 1.12),
+        left: shade(base, 0.82),
+        right: shade(base, 0.6),
+        roof: shade(base, 1.32),
+        glass: "rgba(235,246,255,0.55)",
+      };
+  // Windows only on healthy and damaged towers; ruined ones stay blank.
+  const windows = ruined || h < 14 ? [] : rightFaceWindows(item.gx, item.gy, h, item.href ? 0.06 : 0.12, 2, Math.max(1, Math.round(h / 18)));
+  const roof = roofPlate(item.gx, item.gy, h, 0.34);
   const body = (
     <g>
       <title>{`${item.label}: ${item.detail}`}</title>
       <polygon points={f.left} fill={faces.left} />
       <polygon points={f.right} fill={faces.right} />
+      {windows.map((w, i) => (
+        <polygon key={i} points={w} fill={faces.glass} />
+      ))}
       <polygon points={f.top} fill={faces.top} />
+      <polygon points={roof} fill={faces.roof} opacity={0.9} />
       {item.status === "decaying" && (
-        // Damaged: dashed amber outline plus a crack line, so it isn't colour-only.
+        // Damaged: dashed amber top edge plus a crack, so it isn't colour-only.
         <>
-          <polygon points={f.top} fill="none" stroke="#ffb020" strokeWidth={3} strokeDasharray="4 3" />
+          <polygon points={f.top} fill="none" stroke="#ffb020" strokeWidth={2.5} strokeDasharray="4 3" />
           <polyline points={f.left.split(" ").slice(0, 3).join(" ")} fill="none" stroke="#2a1a00" strokeWidth={1.5} />
         </>
-      )}
-      {item.href && (
-        <text x={f.top.split(" ")[0].split(",")[0]} y={Number(f.top.split(" ")[3].split(",")[1]) + 5} textAnchor="middle" pointerEvents="none" fontSize={8} fontWeight={600} fill="#fff" stroke="#000" strokeWidth={0.6} paintOrder="stroke" aria-hidden>
-          {item.label}
-        </text>
       )}
       {ruined && <polygon points={f.top} fill="none" stroke="#6b1e1e" strokeWidth={2} strokeDasharray="2 3" />}
     </g>
@@ -126,9 +134,15 @@ export function IsoMap({ view }: { view: MapView }) {
           onPointerCancel={() => (drag.current = null)}
           onWheel={(e) => setZoom((z) => clampZoom(z * (e.deltaY < 0 ? 1.15 : 1 / 1.15)))}
         >
+          <defs>
+            <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="var(--surface)" />
+              <stop offset="1" stopColor="var(--line)" stopOpacity={0.55} />
+            </linearGradient>
+          </defs>
           <g aria-hidden>
             {ground.map((p, i) => (
-              <polygon key={i} points={p} fill="var(--line)" fillOpacity={0.35} stroke="var(--line)" strokeWidth={0.5} />
+              <polygon key={i} points={p} fill="url(#ground)" stroke="var(--line)" strokeOpacity={0.6} strokeWidth={0.6} />
             ))}
           </g>
           <g>{items.map((it) => <Block key={it.id} item={it} />)}</g>

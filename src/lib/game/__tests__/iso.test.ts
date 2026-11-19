@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contentBounds, boxFaces, buildingHeight, depth, groundTile, mapBounds, project, TILE_H, TILE_W } from "../iso";
+import { contentBounds, rightFaceWindows, roofPlate, boxFaces, buildingHeight, depth, groundTile, mapBounds, project, TILE_H, TILE_W } from "../iso";
 
 describe("iso projection", () => {
   it("puts the origin at 0,0 and steps half a tile per axis", () => {
@@ -44,5 +44,11 @@ describe("iso projection", () => {
     expect(one.width).toBeGreaterThan(5 * TILE_W / 2);
     const wide = contentBounds([{ gx: 0, gy: 0 }, { gx: 23, gy: 23 }], 12);
     expect(wide.height).toBeGreaterThan(one.height);
+  });
+
+  it("adds windows only on tall enough buildings, and a roof plate", () => {
+    expect(rightFaceWindows(1, 1, 8, 0.12, 2, 2)).toHaveLength(0);
+    expect(rightFaceWindows(1, 1, 40, 0.12, 2, 3)).toHaveLength(6);
+    expect(roofPlate(1, 1, 30, 0.3)).not.toBe(boxFaces(1, 1, 30, 0.1).top);
   });
 });
