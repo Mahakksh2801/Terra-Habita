@@ -56,3 +56,12 @@ which is fine for a private app. Redeploy afterwards.
   Check your primary email at <https://github.com/settings/emails>.
 - **GitHub says the redirect URI is wrong**: the callback URL in step 4 must be exactly `YOUR_URL/api/auth/callback/github`.
 - **Build fails at "prisma migrate deploy"**: the Neon database isn't connected to the project yet (step 3).
+
+## Nightly damage job
+
+Missed days are charged in two ways, and both are safe to repeat:
+
+- Whenever you open Today or the Map, the app first processes every day that has ended since the last run.
+- A Vercel Cron job calls `/api/cron/nightly` once a day at 07:15 UTC (1:15 AM Chicago), so the city is also updated on days you don't open the app.
+
+The cron route only runs when the request carries `Authorization: Bearer <CRON_SECRET>`. To turn it on, add a `CRON_SECRET` environment variable in Vercel (Settings → Environment Variables, any long random string, Production) and redeploy. Vercel sends that header automatically. Without it the route returns 401 and the open-the-app catch-up still keeps everything correct.

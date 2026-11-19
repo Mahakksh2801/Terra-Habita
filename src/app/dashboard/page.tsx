@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/server/session";
+import { catchUp } from "@/server/nightly";
 import { getToday } from "@/server/today";
 import { Checklist } from "@/components/Checklist";
 import { TimezoneSync } from "@/components/TimezoneSync";
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
   const userId = await requireUserId();
+  await catchUp(prisma, userId);
   const t = await getToday(prisma, userId);
   const dateLabel = new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }).format(
     new Date(`${t.today}T00:00:00Z`),
