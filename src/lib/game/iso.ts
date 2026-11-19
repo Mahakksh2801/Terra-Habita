@@ -108,3 +108,38 @@ export function contentBounds(cells: { gx: number; gy: number }[], maxHeight: nu
   const maxY = Math.max(...corners.map((p) => p.y)) + pad;
   return { minX, minY, width: maxX - minX, height: maxY - minY };
 }
+
+/**
+ * Window cells on the right-hand face of a box, as polygon point strings.
+ * `cols` windows run along the face and `rows` up its height; each window is
+ * inset from its cell so the wall shows between them.
+ */
+export function rightFaceWindows(gx: number, gy: number, height: number, inset: number, cols: number, rows: number): string[] {
+  if (height < 14 || cols < 1 || rows < 1) return [];
+  const a = inset;
+  const b = 1 - inset;
+  const at = (u: number, v: number, lift: number): Point => {
+    // Right face runs from the front corner (b,b) back to (b,a), with `lift` pixels of height.
+    const p = project(gx + b, gy + b - (b - a) * u);
+    return { x: p.x, y: p.y - lift };
+  };
+  const out: string[] = [];
+  const pad = 0.22;
+  const gapU = (1 - 2 * pad) / cols;
+  const gapV = (height - 4) / rows;
+  for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < rows; r++) {
+      const u0 = pad + c * gapU + gapU * 0.2;
+      const u1 = pad + (c + 1) * gapU - gapU * 0.2;
+      const v0 = 3 + r * gapV + gapV * 0.25;
+      const v1 = 3 + (r + 1) * gapV - gapV * 0.25;
+      out.push(pts([at(u0, 0, v0), at(u1, 0, v0), at(u1, 0, v1), at(u0, 0, v1)]));
+    }
+  }
+  return out;
+}
+
+/** Inner roof plate: the top face shrunk toward its centre. */
+export function roofPlate(gx: number, gy: number, height: number, inset: number): string {
+  return boxFaces(gx, gy, height, inset).top;
+}
