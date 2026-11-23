@@ -54,6 +54,24 @@ export const BUILDING = {
   windowRows: 2,
 } as const;
 
+/**
+ * Each habit gets its own colour from this list, handed out in order as habits
+ * are created (the first colour not already used by one of the user's habits).
+ * Every building a habit raises is painted in its colour; only size is shared.
+ */
+export const HABIT_COLORS = [
+  "#d9633c", // orange
+  "#4c7fd0", // blue
+  "#3fa58f", // teal
+  "#a35fc2", // purple
+  "#e0a63a", // amber
+  "#c2456b", // raspberry
+  "#5b8f3a", // green
+  "#2f7fa0", // ocean
+  "#b07a4f", // brown
+  "#7a8696", // slate
+] as const;
+
 /** Windows on each visible face of every building. */
 export const WINDOWS_PER_FACE = BUILDING.windowCols * BUILDING.windowRows;
 

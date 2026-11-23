@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildingTypeFor } from "../buildings";
+import { buildingTypeFor, pickHabitColor } from "../buildings";
+import { HABIT_COLORS } from "../config";
 import { CITY_GRID_SIZE, PROMOTION_THRESHOLD } from "../config";
 import { cellKey, nextFreeCell, nextFreeCells, spiralOrder } from "../placement";
 
@@ -40,6 +41,19 @@ describe("nextFreeCell", () => {
   it("returns several distinct cells", () => {
     const cells = nextFreeCells(3, new Set(), 3);
     expect(new Set(cells.map(cellKey)).size).toBe(3);
+  });
+});
+
+describe("habit colours", () => {
+  it("gives each new habit the first colour no other habit uses", () => {
+    expect(pickHabitColor([])).toBe(HABIT_COLORS[0]);
+    expect(pickHabitColor([HABIT_COLORS[0]])).toBe(HABIT_COLORS[1]);
+    // A removed habit frees its colour for the next one.
+    expect(pickHabitColor([HABIT_COLORS[1], HABIT_COLORS[2]])).toBe(HABIT_COLORS[0]);
+  });
+  it("keeps the palette distinct and repeats only once all are taken", () => {
+    expect(new Set(HABIT_COLORS).size).toBe(HABIT_COLORS.length);
+    expect(pickHabitColor([...HABIT_COLORS])).toBe(HABIT_COLORS[0]);
   });
 });
 

@@ -59,6 +59,17 @@ describe("check-off", () => {
     expect((await db.user.findUniqueOrThrow({ where: { id: userId } })).totalCompletions).toBe(1);
   });
 
+  it("paints each habit's buildings in that habit's own colour", async () => {
+    const a = await newHabit();
+    const b = await newHabit({ name: "Read", category: "body" });
+    expect(a.color).not.toBe(b.color);
+    await completeHabit(db, userId, a.id, now);
+    await completeHabit(db, userId, b.id, now);
+    const built = await db.building.findMany({ select: { habitId: true, color: true } });
+    expect(built.find((x) => x.habitId === a.id)?.color).toBe(a.color);
+    expect(built.find((x) => x.habitId === b.id)?.color).toBe(b.color);
+  });
+
   it("builds nothing on an off day", async () => {
     // Today is Sunday the 15th; a Monday-to-Friday habit is off.
     const h = await newHabit({ frequency: 0b0111110 });

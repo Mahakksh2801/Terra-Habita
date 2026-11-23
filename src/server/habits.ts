@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Db, Tx } from "@/lib/db";
-import { EVERY_DAY, HABIT_CATEGORIES, isValidMask, localDateOf } from "@/lib/game";
+import { EVERY_DAY, HABIT_CATEGORIES, isValidMask, localDateOf, pickHabitColor } from "@/lib/game";
 import { toDbDate } from "@/lib/day";
 
 export const habitInput = z
@@ -42,8 +42,9 @@ export async function getHabit(db: Db, userId: string, habitId: string) {
 export async function createHabit(db: Db, userId: string, input: HabitInput, now = new Date()) {
   const data = habitInput.parse(input);
   const user = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { timezone: true } });
+  const others = await db.habit.findMany({ where: { userId }, select: { color: true } });
   return db.habit.create({
-    data: { ...data, userId, createdOn: toDbDate(localDateOf(now, user.timezone)) },
+    data: { ...data, userId, color: pickHabitColor(others.map((h) => h.color)), createdOn: toDbDate(localDateOf(now, user.timezone)) },
   });
 }
 

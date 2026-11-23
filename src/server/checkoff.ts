@@ -70,6 +70,7 @@ export async function completeHabit(db: Db, userId: string, habitId: string, now
               gridX: b.x,
               gridY: b.y,
               type: b.type,
+              color: b.milestone ? null : habit.color,
               builtOn: day,
               lastMaintainedOn: day,
             },

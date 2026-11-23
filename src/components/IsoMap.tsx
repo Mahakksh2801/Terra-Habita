@@ -101,7 +101,7 @@ const Block = memo(function Block({ item }: { item: MapItem }) {
   const h = region ? regionHeight(item.tier, item.status) : buildingHeight();
   const inset = region ? 0.06 : BUILDING.inset;
   const f = boxFaces(item.gx, item.gy, h, inset);
-  const base = BASE[item.type] ?? "#888888";
+  const base = item.color ?? BASE[item.type] ?? "#888888";
   const ruined = item.status === "ruined";
   const faces = ruined
     ? { top: gray(1.1), left: gray(0.72), right: gray(0.55), roof: gray(1.3), glass: gray(1.6) }
@@ -181,7 +181,10 @@ export function IsoMap({ view }: { view: MapView }) {
     { label: "Damaged: dashed amber top, a crack, dark windows", cls: "bg-decaying" },
     { label: "Ruined: grey, all windows dark", cls: "bg-ruined" },
   ];
-  const kinds = view.level === "city" ? [...new Set(view.items.map((i) => i.type))] : [];
+  // City legend: one swatch per habit colour, then any milestone kinds.
+  const kinds = view.level === "city"
+    ? [...new Map(view.items.map((i) => (i.color ? [`${i.habitName}|${i.color}`, { label: i.habitName!, color: i.color }] : [i.type, { label: i.type.replace(/_/g, " "), color: BASE[i.type] }]))).values()]
+    : [];
 
   return (
     <div>
@@ -234,7 +237,7 @@ export function IsoMap({ view }: { view: MapView }) {
           <li key={l.label} className="flex items-center gap-2"><span className={`inline-block h-3 w-3 rounded-sm ${l.cls}`} aria-hidden />{l.label}</li>
         ))}
         {kinds.map((k) => (
-          <li key={k} className="flex items-center gap-2 capitalize"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: BASE[k] }} aria-hidden />{k.replace(/_/g, " ")}</li>
+          <li key={`${k.label}|${k.color}`} className="flex items-center gap-2"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: k.color }} aria-hidden />{k.label}</li>
         ))}
         <li>One building per completed habit-day, all the same size. Drag to pan, scroll or +/− to zoom.</li>
       </ul>

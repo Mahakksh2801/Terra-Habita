@@ -38,8 +38,12 @@ All numbers live in `src/lib/game/config.ts`. Rules are pure functions in
   creative→studio, home→house, other→shop.
 - Every habit building is the same size (changed 2026-11-23, replacing the old
   1/25/100/250/500/1000 height tiers): one 3-D block, same height and footprint,
-  with exactly 4 windows (2 across, 2 up) on each visible wall. The type only
-  changes its colour. Damage never changes its size: a damaged building gets a
+  with exactly 4 windows (2 across, 2 up) on each visible wall.
+- Each habit has its own colour (added 2026-11-23), handed out from
+  `HABIT_COLORS` as habits are created: the first colour none of your other
+  habits uses. Every building a habit raises is painted that colour, so the
+  gym's buildings and the project's buildings look different. A building keeps
+  its colour even if its habit is later removed. Damage never changes its size: a damaged building gets a
   dashed amber roof edge, a crack and a dark window per wall; a ruined one turns
   grey with all windows dark. Numbers live in `BUILDING` in `config.ts`.
 - Un-ticking today removes the building that completion raised.

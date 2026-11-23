@@ -4,7 +4,7 @@
  *   npm run db:seed
  */
 import { PrismaClient, type BuildingStatus } from "@prisma/client";
-import { CITY_GRID_SIZE, buildingTypeFor, settlementName, spiralOrder, type HabitCategory } from "../src/lib/game";
+import { CITY_GRID_SIZE, HABIT_COLORS, buildingTypeFor, settlementName, spiralOrder, type HabitCategory } from "../src/lib/game";
 
 const prisma = new PrismaClient();
 const DEMO_EMAIL = "demo@terra-habita.test";
@@ -19,7 +19,7 @@ async function main() {
   const cats: [string, HabitCategory][] = [["Going to gym", "body"], ["Doing project for an hour", "work"], ["Reading", "mind"]];
   const habits = [];
   for (const [name, category] of cats) {
-    habits.push(await prisma.habit.create({ data: { userId: user.id, name, category, frequency: 127, createdOn: day(0) } }));
+    habits.push(await prisma.habit.create({ data: { userId: user.id, name, category, frequency: 127, color: HABIT_COLORS[habits.length], createdOn: day(0) } }));
   }
 
   const state = await prisma.settlement.create({
@@ -44,7 +44,7 @@ async function main() {
       const habit = habits[i % habits.length];
       rows.push({
         settlementId: city.id, habitId: habit.id, gridX: grid[i].x, gridY: grid[i].y,
-        type: buildingTypeFor(habit.category as HabitCategory),
+        type: buildingTypeFor(habit.category as HabitCategory), color: habit.color,
         builtOn: day(c * 100 + (i % 90)), lastMaintainedOn: day(c * 100 + (i % 90)),
         condition: status === "healthy" ? 100 : status === "decaying" ? 50 : 0, status,
       });

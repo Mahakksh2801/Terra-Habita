@@ -40,7 +40,7 @@ npm run test:db   # database layer; uses DATABASE_URL from .env.test and truncat
 
 ## The map
 
-`/map` shows the active city as an isometric (3-D style) grid, one block per completed habit-day, all the same size with 4 windows on each visible wall: colour is the habit category, damaged blocks get a dashed amber top and dark windows, ruined ones turn grey. Higher levels (state, country, continent, world) show their children as larger blocks you can click to drill in. `npm run db:seed` creates a local demo user (`demo@terra-habita.test`) with 1,540 buildings across five cities.
+`/map` shows the active city as an isometric (3-D style) grid, one block per completed habit-day, all the same size with 4 windows on each visible wall: each habit has its own colour, damaged blocks get a dashed amber top and dark windows, ruined ones turn grey. Higher levels (state, country, continent, world) show their children as larger blocks you can click to drill in. `npm run db:seed` creates a local demo user (`demo@terra-habita.test`) with 1,540 buildings across five cities.
 
 ## Installing on a phone or laptop
 
