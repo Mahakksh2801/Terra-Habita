@@ -52,11 +52,30 @@ describe("check-off", () => {
   it("founds the first city and places a building", async () => {
     const h = await newHabit();
     const r = await completeHabit(db, userId, h.id, now);
-    expect(r).toMatchObject({ ok: true, built: [{ type: "gym", tier: 1, milestone: null }], streak: 1, settlement: "Aurelia" });
+    expect(r).toMatchObject({ ok: true, built: [{ type: "gym", milestone: null }], streak: 1, settlement: "Aurelia" });
     const city = await db.settlement.findFirstOrThrow({ where: { userId, isActive: true } });
     expect(city.buildingCount).toBe(1);
     expect((await db.completion.findFirstOrThrow()).completedOn.toISOString().slice(0, 10)).toBe("2026-11-15");
     expect((await db.user.findUniqueOrThrow({ where: { id: userId } })).totalCompletions).toBe(1);
+  });
+
+  it("paints each habit's buildings in that habit's own colour", async () => {
+    const a = await newHabit();
+    const b = await newHabit({ name: "Read", category: "body" });
+    expect(a.color).not.toBe(b.color);
+    await completeHabit(db, userId, a.id, now);
+    await completeHabit(db, userId, b.id, now);
+    const built = await db.building.findMany({ select: { habitId: true, color: true } });
+    expect(built.find((x) => x.habitId === a.id)?.color).toBe(a.color);
+    expect(built.find((x) => x.habitId === b.id)?.color).toBe(b.color);
+  });
+
+  it("builds nothing on an off day", async () => {
+    // Today is Sunday the 15th; a Monday-to-Friday habit is off.
+    const h = await newHabit({ frequency: 0b0111110 });
+    expect(await completeHabit(db, userId, h.id, now)).toEqual({ ok: false, reason: "off_day" });
+    expect(await db.building.count()).toBe(0);
+    expect(await db.completion.count()).toBe(0);
   });
 
   it("rejects a second check-off the same day", async () => {

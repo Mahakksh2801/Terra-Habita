@@ -18,6 +18,8 @@ const REJECTED: Record<string, string> = {
   archived: "That habit is archived.",
   before_created: "That habit starts tomorrow.",
   grid_full: "Your city is full.",
+  off_day: "Today is an off day for that habit, so it doesn't build.",
+  week_full: "You've already done that habit enough days this week. No more buildings until Monday.",
   future: "You can't complete a future day.",
   too_old: "You can only check off today.",
 };

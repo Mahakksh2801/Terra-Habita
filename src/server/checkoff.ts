@@ -10,7 +10,7 @@ import { ensureActiveCity, promoteIfFull, refreshAggregates } from "./settlement
 export type CheckoffResult =
   | {
       ok: true;
-      built: { type: string; tier: number; milestone: string | null }[];
+      built: { type: string; milestone: string | null }[];
       repaired: number;
       streak: number;
       settlement: string;
@@ -55,7 +55,6 @@ export async function completeHabit(db: Db, userId: string, habitId: string, now
           completed: new Set(completions.map((c) => fromDbDate(c.completedOn))),
           lastMissedOn: habit.lastMissedOn ? fromDbDate(habit.lastMissedOn) : null,
           habitBuildings: damaged,
-          totalCompletions: user.totalCompletions,
           gridSize: city.gridSize,
           occupied: new Set(cells.map((c) => cellKey({ x: c.gridX, y: c.gridY }))),
         });
@@ -71,7 +70,7 @@ export async function completeHabit(db: Db, userId: string, habitId: string, now
               gridX: b.x,
               gridY: b.y,
               type: b.type,
-              tier: b.tier,
+              color: b.milestone ? null : habit.color,
               builtOn: day,
               lastMaintainedOn: day,
             },
@@ -104,7 +103,7 @@ export async function completeHabit(db: Db, userId: string, habitId: string, now
 
         return {
           ok: true as const,
-          built: plan.buildings.map((b) => ({ type: b.type, tier: b.tier, milestone: b.milestone })),
+          built: plan.buildings.map((b) => ({ type: b.type, milestone: b.milestone })),
           repaired: plan.repairs.length,
           streak: plan.streak,
           settlement: city.name,

@@ -10,6 +10,10 @@ export interface MapItem {
   gy: number;
   /** Building type for cities; the child's level for higher zoom levels. */
   type: string;
+  /** The habit's colour for habit buildings; unset for milestones and regions. */
+  color?: string;
+  /** Habit name, for the colour legend. */
+  habitName?: string;
   tier: number;
   status: MapStatus;
   label: string;
@@ -83,6 +87,8 @@ export async function getMap(db: Db, userId: string, id?: string): Promise<MapVi
       gx: b.gridX,
       gy: b.gridY,
       type: b.type,
+      color: b.color ?? undefined,
+      habitName: b.color ? (b.habit?.name ?? "Removed habit") : undefined,
       tier: b.tier,
       status: b.status,
       label: `${b.type.replace(/_/g, " ")}`,

@@ -1,7 +1,7 @@
 import { BACKFILL_DAYS, CLEAN_STREAK_DAYS, CONDITION } from "./config";
-import { type LocalDate, addDays, daysBetween, eachDay } from "./dates";
+import { type LocalDate, addDays, daysBetween, eachDay, mondayOf } from "./dates";
 import { statusFor, type BuildingStatus } from "./condition";
-import { buildingTypeFor, heightTierFor, type HabitCategory } from "./buildings";
+import { buildingTypeFor, type HabitCategory } from "./buildings";
 import { type Cell, nextFreeCells } from "./placement";
 import { currentStreak, currentStreakFlexible, milestonesCrossed, type StreakMilestone } from "./streaks";
 import { isScheduled } from "./schedule";
@@ -24,8 +24,6 @@ export interface CompletionInput {
   lastMissedOn: LocalDate | null;
   /** The habit's existing buildings, across all settlements. */
   habitBuildings: ReadonlyArray<{ id: string; condition: number }>;
-  /** User's lifetime completions before this one. */
-  totalCompletions: number;
   /** Active city grid. */
   gridSize: number;
   occupied: ReadonlySet<string>;
@@ -33,7 +31,6 @@ export interface CompletionInput {
 
 export interface PlannedBuilding extends Cell {
   type: string;
-  tier: number;
   milestone: StreakMilestone["type"] | null;
 }
 
@@ -44,7 +41,7 @@ export interface CompletionPlan {
   streak: number;
 }
 
-export type CompletionError = "archived" | "future" | "too_old" | "before_created" | "already_done" | "grid_full";
+export type CompletionError = "archived" | "future" | "too_old" | "before_created" | "already_done" | "off_day" | "week_full" | "grid_full";
 
 export class CompletionRejected extends Error {
   constructor(public readonly reason: CompletionError) {
@@ -71,6 +68,25 @@ export function cleanStreakDone(
 }
 
 /**
+ * Can this habit be ticked on `date` at all? Each completion builds exactly one
+ * building, so off days build nothing and are blocked:
+ *  - fixed weekdays: only the scheduled weekdays can be ticked;
+ *  - "any N days a week": only N days per Monday-to-Sunday week can be ticked.
+ */
+export function offDayReason(
+  habit: { mask: number; weeklyTarget?: number | null },
+  date: LocalDate,
+  completed: ReadonlySet<LocalDate>,
+): "off_day" | "week_full" | null {
+  if (habit.weeklyTarget) {
+    const monday = mondayOf(date);
+    const doneThisWeek = eachDay(monday, addDays(monday, 7)).filter((d) => d !== date && completed.has(d)).length;
+    return doneThisWeek >= habit.weeklyTarget ? "week_full" : null;
+  }
+  return isScheduled(date, habit.mask) ? null : "off_day";
+}
+
+/**
  * Everything one completion does to the world, as a plan the caller persists
  * in a single transaction: one new building (plus any milestone buildings),
  * newly unlocked milestones, and, if this completion finishes a clean 7-day
@@ -84,6 +100,8 @@ export function planCompletion(input: CompletionInput): CompletionPlan {
   if (age > BACKFILL_DAYS) throw new CompletionRejected("too_old");
   if (date < habit.createdOn) throw new CompletionRejected("before_created");
   if (completed.has(date)) throw new CompletionRejected("already_done");
+  const off = offDayReason(habit, date, completed);
+  if (off) throw new CompletionRejected(off);
 
   const withThis = new Set([...completed, date]);
   const streakOf = (days: ReadonlySet<LocalDate>) =>
@@ -92,16 +110,15 @@ export function planCompletion(input: CompletionInput): CompletionPlan {
       : currentStreak({ completed: days, mask: habit.mask, createdOn: habit.createdOn, today });
   const before = streakOf(completed);
   const after = streakOf(withThis);
-  // A completion on an unscheduled day still builds, but cannot unlock milestones.
-  const crossed = isScheduled(date, habit.mask) ? milestonesCrossed(before.length, after.length) : [];
+  const crossed = milestonesCrossed(before.length, after.length);
 
   const cells = nextFreeCells(input.gridSize, input.occupied, 1 + crossed.length);
   if (cells.length < 1 + crossed.length) throw new CompletionRejected("grid_full");
 
-  const tier = heightTierFor(input.totalCompletions + 1);
+  // One completed habit-day = one building, identical in size to every other.
   const buildings: PlannedBuilding[] = [
-    { ...cells[0], type: buildingTypeFor(habit.category), tier, milestone: null },
-    ...crossed.map((m, i) => ({ ...cells[i + 1], type: m.building, tier, milestone: m.type })),
+    { ...cells[0], type: buildingTypeFor(habit.category), milestone: null },
+    ...crossed.map((m, i) => ({ ...cells[i + 1], type: m.building, milestone: m.type })),
   ];
 
   const repairs = cleanStreakDone(habit.mask, input.lastMissedOn, withThis, habit.weeklyTarget)

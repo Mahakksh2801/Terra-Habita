@@ -19,7 +19,7 @@ export interface Streak {
 /**
  * Current streak, counted in scheduled days. Today only breaks the streak once
  * it is over: an unfinished today is skipped rather than counted as a miss.
- * Unscheduled days neither extend nor break a streak.
+ * Unscheduled days neither extend nor break a streak (and cannot be ticked).
  */
 export function currentStreak({ completed, mask, createdOn, today }: StreakInput): Streak {
   let day = today;

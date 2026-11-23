@@ -47,7 +47,7 @@ model User {
   timezoneConfirmed Boolean   @default(false)
   /// Last local day the decay job has processed for this user (inclusive).
   lastProcessedOn   DateTime? @db.Date
-  /// Denormalised lifetime completion count, drives building height tiers.
+  /// Denormalised lifetime completion count.
   totalCompletions  Int       @default(0)
   createdAt         DateTime  @default(now())
 
@@ -68,6 +68,8 @@ model Habit {
   /// "Any N days a week" (1-6). When set, any weekday counts and each
   /// Monday-to-Sunday week is judged against this target; frequency stays 127.
   weeklyTarget      Int?
+  /// Colour of every building this habit raises (hex, from HABIT_COLORS).
+  color             String        @default("#d9633c")
   createdOn         DateTime      @db.Date
   createdAt         DateTime      @default(now())
   archivedAt        DateTime?
@@ -139,6 +141,10 @@ model Building {
   gridX            Int
   gridY            Int
   type             String
+  /// Copied from the habit when built, so it keeps its colour if the habit is removed.
+  /// Null for milestone buildings, which have their own look.
+  color            String?
+  /// Unused: every building is the same size now. Kept so existing rows need no migration.
   tier             Int            @default(1)
   builtOn          DateTime       @db.Date
   condition        Int            @default(100)

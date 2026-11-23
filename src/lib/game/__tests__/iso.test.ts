@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { contentBounds, rightFaceWindows, roofPlate, boxFaces, buildingHeight, depth, groundTile, mapBounds, project, TILE_H, TILE_W } from "../iso";
+import { contentBounds, faceWindows, roofPlate, boxFaces, buildingHeight, depth, groundTile, mapBounds, project, regionHeight, TILE_H, TILE_W } from "../iso";
+import { BUILDING, WINDOWS_PER_FACE } from "../config";
 
 describe("iso projection", () => {
   it("puts the origin at 0,0 and steps half a tile per axis", () => {
@@ -14,11 +15,15 @@ describe("iso projection", () => {
     expect(depth(5, 1)).toBe(depth(2, 4));
   });
 
-  it("grows taller with tier and shrinks when damaged or ruined", () => {
-    expect(buildingHeight(6, "healthy")).toBeGreaterThan(buildingHeight(1, "healthy"));
-    expect(buildingHeight(3, "decaying")).toBeLessThan(buildingHeight(3, "healthy"));
-    expect(buildingHeight(3, "ruined")).toBeLessThan(buildingHeight(3, "decaying"));
-    expect(buildingHeight(1, "ruined")).toBeGreaterThan(0);
+  it("gives every habit building the same height", () => {
+    expect(buildingHeight()).toBe(BUILDING.height);
+  });
+
+  it("region tiles still grow with tier and shrink when damaged or ruined", () => {
+    expect(regionHeight(6, "healthy")).toBeGreaterThan(regionHeight(1, "healthy"));
+    expect(regionHeight(3, "decaying")).toBeLessThan(regionHeight(3, "healthy"));
+    expect(regionHeight(3, "ruined")).toBeLessThan(regionHeight(3, "decaying"));
+    expect(regionHeight(1, "ruined")).toBeGreaterThan(0);
   });
 
   it("builds three faces whose top is raised by the height", () => {
@@ -46,9 +51,17 @@ describe("iso projection", () => {
     expect(wide.height).toBeGreaterThan(one.height);
   });
 
-  it("adds windows only on tall enough buildings, and a roof plate", () => {
-    expect(rightFaceWindows(1, 1, 8, 0.12, 2, 2)).toHaveLength(0);
-    expect(rightFaceWindows(1, 1, 40, 0.12, 2, 3)).toHaveLength(6);
+  it("puts the same 4 windows on both visible walls, and a roof plate", () => {
+    expect(WINDOWS_PER_FACE).toBe(4);
+    const h = buildingHeight();
+    const left = faceWindows(1, 1, h, BUILDING.inset, "left");
+    const right = faceWindows(1, 1, h, BUILDING.inset, "right");
+    expect(left).toHaveLength(4);
+    expect(right).toHaveLength(4);
+    expect(left).not.toEqual(right);
+    // Same on a building anywhere else on the grid.
+    expect(faceWindows(9, 3, h, BUILDING.inset, "left")).toHaveLength(4);
+    for (const w of [...left, ...right]) expect(w.split(" ")).toHaveLength(4);
     expect(roofPlate(1, 1, 30, 0.3)).not.toBe(boxFaces(1, 1, 30, 0.1).top);
   });
 });

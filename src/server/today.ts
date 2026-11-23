@@ -1,5 +1,5 @@
 import type { Db } from "@/lib/db";
-import { currentStreak, currentStreakFlexible, isScheduled, localDateOf, mondayOf, type LocalDate } from "@/lib/game";
+import { currentStreak, currentStreakFlexible, isScheduled, localDateOf, mondayOf, offDayReason, type LocalDate } from "@/lib/game";
 import { fromDbDate } from "@/lib/day";
 
 export interface TodayHabit {
@@ -13,6 +13,8 @@ export interface TodayHabit {
   weekDone: number;
   scheduledToday: boolean;
   doneToday: boolean;
+  /** Why today can't be ticked (an off day builds nothing), or null if it can. */
+  blocked: "off_day" | "week_full" | null;
   streak: number;
 }
 
@@ -40,6 +42,7 @@ export async function getToday(db: Db, userId: string, now = new Date()) {
       weekDone: [...completed].filter((d) => d >= mondayOf(today) && d <= today).length,
       scheduledToday: isScheduled(today, h.frequency),
       doneToday: completed.has(today),
+      blocked: completed.has(today) ? null : offDayReason({ mask: h.frequency, weeklyTarget: h.weeklyTarget }, today, completed),
       streak: (h.weeklyTarget
         ? currentStreakFlexible({ completed, target: h.weeklyTarget, createdOn: fromDbDate(h.createdOn), today })
         : currentStreak({ completed, mask: h.frequency, createdOn: fromDbDate(h.createdOn), today })

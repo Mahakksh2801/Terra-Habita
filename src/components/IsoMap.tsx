@@ -1,7 +1,8 @@
 "use client";
 
 import { memo, useMemo, useRef, useState } from "react";
-import { boxFaces, buildingHeight, contentBounds, depth, groundTile, project, rightFaceWindows, roofPlate, TIER_HEIGHT, BASE_HEIGHT } from "@/lib/game/iso";
+import { boxFaces, buildingHeight, contentBounds, depth, faceWindows, groundTile, project, regionHeight, roofPlate } from "@/lib/game/iso";
+import { BUILDING } from "@/lib/game/config";
 import type { MapItem, MapView } from "@/server/map";
 
 /** Base colour per building type / region level. */
@@ -95,9 +96,12 @@ function Monument({ item }: { item: MapItem }) {
 const Block = memo(function Block({ item }: { item: MapItem }) {
   if (item.type === "park") return <Park item={item} />;
   if (item.type === "district_hall" || item.type === "landmark") return <Monument item={item} />;
-  const h = buildingHeight(item.tier, item.status);
-  const f = boxFaces(item.gx, item.gy, h, item.href ? 0.06 : 0.12);
-  const base = BASE[item.type] ?? "#888888";
+  // Habit buildings are all one size; only region tiles grow with their contents.
+  const region = Boolean(item.href);
+  const h = region ? regionHeight(item.tier, item.status) : buildingHeight();
+  const inset = region ? 0.06 : BUILDING.inset;
+  const f = boxFaces(item.gx, item.gy, h, inset);
+  const base = item.color ?? BASE[item.type] ?? "#888888";
   const ruined = item.status === "ruined";
   const faces = ruined
     ? { top: gray(1.1), left: gray(0.72), right: gray(0.55), roof: gray(1.3), glass: gray(1.6) }
@@ -106,18 +110,27 @@ const Block = memo(function Block({ item }: { item: MapItem }) {
         left: shade(base, 0.82),
         right: shade(base, 0.6),
         roof: shade(base, 1.32),
-        glass: "rgba(235,246,255,0.55)",
+        glass: "rgba(235,246,255,0.62)",
       };
-  // Windows only on healthy and damaged towers; ruined ones stay blank.
-  const windows = ruined || h < 14 ? [] : rightFaceWindows(item.gx, item.gy, h, item.href ? 0.06 : 0.12, 2, Math.max(1, Math.round(h / 18)));
+  // The same 4 windows (2 x 2) on both visible walls of every building.
+  // Damaged buildings lose the light in one pane per wall; ruined ones are dark.
+  const dark = ruined ? "rgba(30,30,30,0.75)" : "rgba(40,32,24,0.7)";
+  const glassFor = (i: number) => (ruined || (item.status === "decaying" && i === 1) ? dark : faces.glass);
+  const windows = region && h < 14 ? { left: [], right: [] } : {
+    left: faceWindows(item.gx, item.gy, h, inset, "left"),
+    right: faceWindows(item.gx, item.gy, h, inset, "right"),
+  };
   const roof = roofPlate(item.gx, item.gy, h, 0.34);
   const body = (
     <g>
       <title>{`${item.label}: ${item.detail}`}</title>
       <polygon points={f.left} fill={faces.left} />
       <polygon points={f.right} fill={faces.right} />
-      {windows.map((w, i) => (
-        <polygon key={i} points={w} fill={faces.glass} />
+      {windows.left.map((w, i) => (
+        <polygon key={`l${i}`} points={w} fill={glassFor(i)} />
+      ))}
+      {windows.right.map((w, i) => (
+        <polygon key={`r${i}`} points={w} fill={glassFor(i)} />
       ))}
       <polygon points={f.top} fill={faces.top} />
       <polygon points={roof} fill={faces.roof} opacity={0.9} />
@@ -141,8 +154,7 @@ const Block = memo(function Block({ item }: { item: MapItem }) {
 });
 
 export function IsoMap({ view }: { view: MapView }) {
-  const maxTier = Math.max(1, ...view.items.map((i) => i.tier));
-  const maxH = BASE_HEIGHT + (maxTier - 1) * TIER_HEIGHT;
+  const maxH = view.level === "city" ? buildingHeight() : Math.max(1, ...view.items.map((i) => regionHeight(i.tier, "healthy")));
   const b = useMemo(() => contentBounds(view.items, maxH, view.level === "city" ? 6 : 3), [view.items, view.level, maxH]);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -165,11 +177,14 @@ export function IsoMap({ view }: { view: MapView }) {
   const clampZoom = (z: number) => Math.max(1, Math.min(8, z));
 
   const legend = [
-    { label: "Healthy: full height, full colour", cls: "bg-healthy" },
-    { label: "Damaged: shorter, dashed amber top", cls: "bg-decaying" },
-    { label: "Ruined: low grey rubble", cls: "bg-ruined" },
+    { label: "Healthy: full colour, lit windows", cls: "bg-healthy" },
+    { label: "Damaged: dashed amber top, a crack, dark windows", cls: "bg-decaying" },
+    { label: "Ruined: grey, all windows dark", cls: "bg-ruined" },
   ];
-  const kinds = view.level === "city" ? [...new Set(view.items.map((i) => i.type))] : [];
+  // City legend: one swatch per habit colour, then any milestone kinds.
+  const kinds = view.level === "city"
+    ? [...new Map(view.items.map((i) => (i.color ? [`${i.habitName}|${i.color}`, { label: i.habitName!, color: i.color }] : [i.type, { label: i.type.replace(/_/g, " "), color: BASE[i.type] }]))).values()]
+    : [];
 
   return (
     <div>
@@ -222,9 +237,9 @@ export function IsoMap({ view }: { view: MapView }) {
           <li key={l.label} className="flex items-center gap-2"><span className={`inline-block h-3 w-3 rounded-sm ${l.cls}`} aria-hidden />{l.label}</li>
         ))}
         {kinds.map((k) => (
-          <li key={k} className="flex items-center gap-2 capitalize"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: BASE[k] }} aria-hidden />{k.replace(/_/g, " ")}</li>
+          <li key={`${k.label}|${k.color}`} className="flex items-center gap-2"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: k.color }} aria-hidden />{k.label}</li>
         ))}
-        <li>Taller means more lifetime completions when it was built. Drag to pan, scroll or +/− to zoom.</li>
+        <li>One building per completed habit-day, all the same size. Drag to pan, scroll or +/− to zoom.</li>
       </ul>
 
       <details className="mt-4">

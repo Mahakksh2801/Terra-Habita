@@ -1,4 +1,4 @@
-import { HEIGHT_TIERS } from "./config";
+import { HABIT_COLORS } from "./config";
 
 export const HABIT_CATEGORIES = ["body", "mind", "work", "social", "creative", "home", "other"] as const;
 export type HabitCategory = (typeof HABIT_CATEGORIES)[number];
@@ -21,9 +21,13 @@ export function buildingTypeFor(category: HabitCategory): string {
   return CATEGORY_BUILDING[category] ?? CATEGORY_BUILDING.other;
 }
 
-/** Height tier available once the user has `totalCompletions` lifetime completions. */
-export function heightTierFor(totalCompletions: number): number {
-  let tier: number = HEIGHT_TIERS[0].tier;
-  for (const t of HEIGHT_TIERS) if (totalCompletions >= t.minCompletions) tier = t.tier;
-  return tier;
+/**
+ * Colour for a new habit: the first palette colour none of the user's other
+ * habits use, so habits look different from each other. Once all are taken,
+ * colours repeat in order.
+ */
+export function pickHabitColor(used: ReadonlyArray<string>): string {
+  const taken = new Set(used.map((c) => c.toLowerCase()));
+  const free = HABIT_COLORS.find((c) => !taken.has(c));
+  return free ?? HABIT_COLORS[used.length % HABIT_COLORS.length];
 }

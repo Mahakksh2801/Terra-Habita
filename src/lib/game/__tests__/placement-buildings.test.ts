@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildingTypeFor, heightTierFor } from "../buildings";
+import { buildingTypeFor, pickHabitColor } from "../buildings";
+import { HABIT_COLORS } from "../config";
 import { CITY_GRID_SIZE, PROMOTION_THRESHOLD } from "../config";
 import { cellKey, nextFreeCell, nextFreeCells, spiralOrder } from "../placement";
 
@@ -43,16 +44,22 @@ describe("nextFreeCell", () => {
   });
 });
 
-describe("building type and height", () => {
+describe("habit colours", () => {
+  it("gives each new habit the first colour no other habit uses", () => {
+    expect(pickHabitColor([])).toBe(HABIT_COLORS[0]);
+    expect(pickHabitColor([HABIT_COLORS[0]])).toBe(HABIT_COLORS[1]);
+    // A removed habit frees its colour for the next one.
+    expect(pickHabitColor([HABIT_COLORS[1], HABIT_COLORS[2]])).toBe(HABIT_COLORS[0]);
+  });
+  it("keeps the palette distinct and repeats only once all are taken", () => {
+    expect(new Set(HABIT_COLORS).size).toBe(HABIT_COLORS.length);
+    expect(pickHabitColor([...HABIT_COLORS])).toBe(HABIT_COLORS[0]);
+  });
+});
+
+describe("building type", () => {
   it("maps category to type", () => {
     expect(buildingTypeFor("body")).toBe("gym");
     expect(buildingTypeFor("mind")).toBe("library");
-  });
-  it("grows taller with lifetime completions", () => {
-    expect(heightTierFor(0)).toBe(1);
-    expect(heightTierFor(24)).toBe(1);
-    expect(heightTierFor(25)).toBe(2);
-    expect(heightTierFor(1000)).toBe(6);
-    expect(heightTierFor(1e6)).toBe(6);
   });
 });
