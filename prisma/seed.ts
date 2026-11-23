@@ -4,7 +4,7 @@
  *   npm run db:seed
  */
 import { PrismaClient, type BuildingStatus } from "@prisma/client";
-import { CITY_GRID_SIZE, buildingTypeFor, heightTierFor, settlementName, spiralOrder, type HabitCategory } from "../src/lib/game";
+import { CITY_GRID_SIZE, buildingTypeFor, settlementName, spiralOrder, type HabitCategory } from "../src/lib/game";
 
 const prisma = new PrismaClient();
 const DEMO_EMAIL = "demo@terra-habita.test";
@@ -28,7 +28,6 @@ async function main() {
   const tiles = spiralOrder(31);
   const grid = spiralOrder(CITY_GRID_SIZE);
   const sizes = [500, 500, 320, 180, 40];
-  let seq = 0;
   for (let c = 0; c < sizes.length; c++) {
     const n = sizes[c];
     const city = await prisma.settlement.create({
@@ -45,12 +44,11 @@ async function main() {
       const habit = habits[i % habits.length];
       rows.push({
         settlementId: city.id, habitId: habit.id, gridX: grid[i].x, gridY: grid[i].y,
-        type: buildingTypeFor(habit.category as HabitCategory), tier: heightTierFor(seq * 2 + i),
+        type: buildingTypeFor(habit.category as HabitCategory),
         builtOn: day(c * 100 + (i % 90)), lastMaintainedOn: day(c * 100 + (i % 90)),
         condition: status === "healthy" ? 100 : status === "decaying" ? 50 : 0, status,
       });
     }
-    seq += n;
     await prisma.building.createMany({ data: rows });
     await prisma.settlement.update({
       where: { id: city.id },

@@ -4,9 +4,11 @@
  */
 export const TILE_W = 64;
 export const TILE_H = 32;
-/** Pixels of height per height tier (so a tier-6 tower is much taller than tier 1). */
-export const TIER_HEIGHT = 11;
-export const BASE_HEIGHT = 12;
+import { BUILDING } from "./config";
+
+/** Region tiles on the state/country/... maps grow with how much they hold. */
+export const REGION_TIER_HEIGHT = 11;
+export const REGION_BASE_HEIGHT = 12;
 
 export interface Point {
   x: number;
@@ -23,8 +25,14 @@ export function depth(gx: number, gy: number): number {
   return gx + gy;
 }
 
-export function buildingHeight(tier: number, status: "healthy" | "decaying" | "ruined"): number {
-  const full = BASE_HEIGHT + Math.max(0, tier - 1) * TIER_HEIGHT;
+/** Every habit building is the same height, whatever its type, age or condition. */
+export function buildingHeight(): number {
+  return BUILDING.height;
+}
+
+/** Height of a region tile (a city on the state map, and so on). */
+export function regionHeight(tier: number, status: "healthy" | "decaying" | "ruined"): number {
+  const full = REGION_BASE_HEIGHT + Math.max(0, tier - 1) * REGION_TIER_HEIGHT;
   if (status === "ruined") return Math.max(4, Math.round(full * 0.25));
   if (status === "decaying") return Math.round(full * 0.8);
   return full;
@@ -109,31 +117,43 @@ export function contentBounds(cells: { gx: number; gy: number }[], maxHeight: nu
   return { minX, minY, width: maxX - minX, height: maxY - minY };
 }
 
+export type Face = "left" | "right";
+
 /**
- * Window cells on the right-hand face of a box, as polygon point strings.
- * `cols` windows run along the face and `rows` up its height; each window is
- * inset from its cell so the wall shows between them.
+ * Window panes on one visible wall of a box, as polygon point strings:
+ * `cols` across the wall and `rows` up it, spread evenly with wall showing
+ * between them. The left wall runs from the west corner to the front corner,
+ * the right wall from the front corner to the east corner.
  */
-export function rightFaceWindows(gx: number, gy: number, height: number, inset: number, cols: number, rows: number): string[] {
-  if (height < 14 || cols < 1 || rows < 1) return [];
+export function faceWindows(
+  gx: number,
+  gy: number,
+  height: number,
+  inset: number,
+  face: Face,
+  cols: number = BUILDING.windowCols,
+  rows: number = BUILDING.windowRows,
+): string[] {
+  if (height <= 0 || cols < 1 || rows < 1) return [];
   const a = inset;
   const b = 1 - inset;
-  const at = (u: number, v: number, lift: number): Point => {
-    // Right face runs from the front corner (b,b) back to (b,a), with `lift` pixels of height.
-    const p = project(gx + b, gy + b - (b - a) * u);
+  // u runs 0..1 along the wall, lift is pixels above the ground.
+  const at = (u: number, lift: number): Point => {
+    const p = face === "left" ? project(gx + a + (b - a) * u, gy + b) : project(gx + b, gy + b - (b - a) * u);
     return { x: p.x, y: p.y - lift };
   };
   const out: string[] = [];
-  const pad = 0.22;
-  const gapU = (1 - 2 * pad) / cols;
-  const gapV = (height - 4) / rows;
-  for (let c = 0; c < cols; c++) {
-    for (let r = 0; r < rows; r++) {
-      const u0 = pad + c * gapU + gapU * 0.2;
-      const u1 = pad + (c + 1) * gapU - gapU * 0.2;
-      const v0 = 3 + r * gapV + gapV * 0.25;
-      const v1 = 3 + (r + 1) * gapV - gapV * 0.25;
-      out.push(pts([at(u0, 0, v0), at(u1, 0, v0), at(u1, 0, v1), at(u0, 0, v1)]));
+  const padU = 0.14;
+  const padV = height * 0.12;
+  const cellU = (1 - 2 * padU) / cols;
+  const cellV = (height - 2 * padV) / rows;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const u0 = padU + c * cellU + cellU * 0.18;
+      const u1 = padU + (c + 1) * cellU - cellU * 0.18;
+      const v0 = padV + r * cellV + cellV * 0.18;
+      const v1 = padV + (r + 1) * cellV - cellV * 0.18;
+      out.push(pts([at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)]));
     }
   }
   return out;

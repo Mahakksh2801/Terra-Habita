@@ -39,15 +39,23 @@ export const STREAK_MILESTONES = [
   { days: 100, type: "streak_100", building: "landmark" },
 ] as const;
 
-/** Building height tier unlocked by the user's lifetime completion count. */
-export const HEIGHT_TIERS = [
-  { minCompletions: 0, tier: 1 },
-  { minCompletions: 25, tier: 2 },
-  { minCompletions: 100, tier: 3 },
-  { minCompletions: 250, tier: 4 },
-  { minCompletions: 500, tier: 5 },
-  { minCompletions: 1000, tier: 6 },
-] as const;
+/**
+ * Every habit building is the same 3-D block: one completed habit-day raises
+ * exactly one building, and they all share this height, footprint and window
+ * layout. Category only changes the colour.
+ */
+export const BUILDING = {
+  /** Height in map pixels (a grid tile is 64 x 32). */
+  height: 40,
+  /** Footprint inset from the tile edge, as a fraction of the tile. */
+  inset: 0.12,
+  /** Windows on every visible wall: 2 across x 2 up = 4 per face. */
+  windowCols: 2,
+  windowRows: 2,
+} as const;
+
+/** Windows on each visible face of every building. */
+export const WINDOWS_PER_FACE = BUILDING.windowCols * BUILDING.windowRows;
 
 export const LEVELS = ["city", "state", "country", "continent", "world"] as const;
 export type Level = (typeof LEVELS)[number];

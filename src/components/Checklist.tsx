@@ -12,13 +12,16 @@ function Row({ habit, onToggle }: { habit: TodayHabit; onToggle: (h: TodayHabit,
         id={id}
         type="checkbox"
         checked={habit.doneToday}
+        disabled={habit.blocked !== null}
         onChange={(e) => onToggle(habit, e.target.checked)}
         className="size-5 accent-[var(--accent)]"
       />
-      <label htmlFor={id} className="flex-1 cursor-pointer">
+      <label htmlFor={id} className={`flex-1 ${habit.blocked ? "text-muted" : "cursor-pointer"}`}>
         <span className={habit.doneToday ? "text-muted line-through" : ""}>{habit.name}</span>
         <span className="block text-sm text-muted">
           {habit.weeklyTarget ? `${habit.weekDone} of ${habit.weeklyTarget} days this week` : habit.category}
+          {habit.blocked === "off_day" && " · off day, no building"}
+          {habit.blocked === "week_full" && " · week done, no more buildings until Monday"}
         </span>
       </label>
       <span className="text-sm text-muted" aria-label={`${habit.streak} day streak`}>
@@ -42,8 +45,8 @@ export function Checklist({ habits }: { habits: TodayHabit[] }) {
       setMessage(r.message);
     });
 
-  const scheduled = optimistic.filter((h) => h.scheduledToday);
-  const rest = optimistic.filter((h) => !h.scheduledToday);
+  const scheduled = optimistic.filter((h) => !h.blocked);
+  const rest = optimistic.filter((h) => h.blocked);
 
   return (
     <div className="space-y-6">
@@ -60,8 +63,8 @@ export function Checklist({ habits }: { habits: TodayHabit[] }) {
       </section>
       {rest.length > 0 && (
         <section aria-labelledby="rest-day" className="space-y-2">
-          <h2 id="rest-day" className="text-lg font-semibold">Rest day</h2>
-          <p className="text-sm text-muted">Not scheduled today. Doing them anyway still builds, and skipping them never counts as a miss.</p>
+          <h2 id="rest-day" className="text-lg font-semibold">Off today</h2>
+          <p className="text-sm text-muted">Off days build nothing, so these can&apos;t be ticked today. Skipping them never counts as a miss.</p>
           <ul className="space-y-2">{rest.map((h) => <Row key={h.id} habit={h} onToggle={onToggle} />)}</ul>
         </section>
       )}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDays, eachDay } from "../dates";
-import { CompletionRejected, cleanStreakDone, planCompletion, type CompletionInput } from "../completion";
+import { CompletionRejected, cleanStreakDone, offDayReason, planCompletion, type CompletionInput } from "../completion";
 import { EVERY_DAY, maskFromWeekdays } from "../schedule";
 import { cellKey, spiralOrder } from "../placement";
 
@@ -12,7 +12,6 @@ const input = (over: Partial<CompletionInput> = {}): CompletionInput => ({
   completed: new Set(),
   lastMissedOn: null,
   habitBuildings: [],
-  totalCompletions: 0,
   gridSize: 24,
   occupied: new Set(),
   ...over,
@@ -21,7 +20,7 @@ const input = (over: Partial<CompletionInput> = {}): CompletionInput => ({
 describe("planCompletion", () => {
   it("places one building of the habit's type at the next free cell", () => {
     const plan = planCompletion(input());
-    expect(plan.buildings).toEqual([{ ...spiralOrder(24)[0], type: "gym", tier: 1, milestone: null }]);
+    expect(plan.buildings).toEqual([{ ...spiralOrder(24)[0], type: "gym", milestone: null }]);
     expect(plan.repairs).toEqual([]);
     expect(plan.streak).toBe(1);
   });
@@ -81,8 +80,35 @@ describe("planCompletion", () => {
     expect(planCompletion(input({ completed })).milestones).toEqual([]);
   });
 
-  it("uses the height tier reached by this completion", () => {
-    expect(planCompletion(input({ totalCompletions: 24 })).buildings[0].tier).toBe(2);
+  it("builds exactly one same-size building per completion, however many came before", () => {
+    const early = planCompletion(input()).buildings[0];
+    const late = planCompletion(input({ completed: new Set(eachDay("2026-01-01", today).filter((d) => d < "2026-11-09")) })).buildings[0];
+    expect(Object.keys(early).sort()).toEqual(["milestone", "type", "x", "y"]);
+    expect(Object.keys(late).sort()).toEqual(Object.keys(early).sort());
+  });
+
+  describe("off days build nothing", () => {
+    // Mon/Tue/Thu/Fri habit. 2026-11-16 is a Monday, the 18th a Wednesday.
+    const mask = maskFromWeekdays([1, 2, 4, 5]);
+    const habit = { id: "h", category: "body" as const, mask, createdOn: "2026-01-01", archived: false };
+
+    it("builds on a scheduled day", () => {
+      expect(planCompletion(input({ habit })).buildings).toHaveLength(1);
+    });
+
+    it("rejects ticking an unscheduled day", () => {
+      expect(() => planCompletion(input({ habit, today: "2026-11-18", date: "2026-11-18" }))).toThrow(
+        expect.objectContaining({ reason: "off_day" }) as unknown as CompletionRejected,
+      );
+      expect(offDayReason(habit, "2026-11-22", new Set())).toBe("off_day"); // Sunday
+      expect(offDayReason(habit, "2026-11-20", new Set())).toBeNull(); // Friday
+    });
+
+    it("so a 4-day habit raises at most 4 buildings a week", () => {
+      const week = eachDay("2026-11-16", "2026-11-23");
+      const built = week.filter((d) => offDayReason(habit, d, new Set()) === null);
+      expect(built).toEqual(["2026-11-16", "2026-11-17", "2026-11-19", "2026-11-20"]);
+    });
   });
 
   it.each([
@@ -106,6 +132,19 @@ describe("any N days a week habits", () => {
     const plan = planCompletion(input({ habit: flexible }));
     expect(plan.buildings).toHaveLength(1);
     expect(plan.streak).toBe(1);
+  });
+
+  it("stops at N buildings a week: the 5th day of a 4-day habit is blocked", () => {
+    // Week of Mon 16th: Mon, Tue, Wed, Thu done; Friday is the 5th.
+    const completed = new Set(["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19"]);
+    expect(() => planCompletion(input({ habit: flexible, completed, today: "2026-11-20", date: "2026-11-20" }))).toThrow(
+      expect.objectContaining({ reason: "week_full" }) as unknown as CompletionRejected,
+    );
+    // Three done: the 4th still builds.
+    completed.delete("2026-11-19");
+    expect(planCompletion(input({ habit: flexible, completed, today: "2026-11-20", date: "2026-11-20" })).buildings).toHaveLength(1);
+    // A new week starts fresh on Monday.
+    expect(offDayReason(flexible, "2026-11-23", new Set([...completed, "2026-11-19", "2026-11-20"]))).toBeNull();
   });
 
   it("repairs when the week after the last miss reaches its target", () => {

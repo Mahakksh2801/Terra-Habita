@@ -47,7 +47,7 @@ model User {
   timezoneConfirmed Boolean   @default(false)
   /// Last local day the decay job has processed for this user (inclusive).
   lastProcessedOn   DateTime? @db.Date
-  /// Denormalised lifetime completion count, drives building height tiers.
+  /// Denormalised lifetime completion count.
   totalCompletions  Int       @default(0)
   createdAt         DateTime  @default(now())
 
@@ -139,6 +139,7 @@ model Building {
   gridX            Int
   gridY            Int
   type             String
+  /// Unused: every building is the same size now. Kept so existing rows need no migration.
   tier             Int            @default(1)
   builtOn          DateTime       @db.Date
   condition        Int            @default(100)

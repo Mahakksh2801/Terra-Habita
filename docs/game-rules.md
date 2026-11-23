@@ -12,12 +12,16 @@ All numbers live in `src/lib/game/config.ts`. Rules are pure functions in
 ## Frequency
 - You can have any number of habits. Each one runs on chosen weekdays
   (every day, 6 days, 4 days, …), stored as a weekday mask.
-- Only scheduled days can be missed or extend a streak. Completing on an
-  unscheduled day still builds, but does not count toward streak milestones.
+- Only scheduled days can be missed or extend a streak.
+- Off days build nothing (changed 2026-11-23). An unscheduled day can't be
+  ticked at all: the checkbox is disabled under "Off today", so a habit on
+  4 weekdays raises at most 4 buildings a week. Skipping an off day is never a miss.
 
 ### "Any N days a week" habits (added 2026-11-18)
 - A habit can instead be "any N days a week" (1 to 6), for example the gym 4 days a week on whichever days suit.
-- Any day counts. Weeks run Monday to Sunday in the user's timezone.
+- Any day counts, up to N days per week. Weeks run Monday to Sunday in the user's timezone.
+- Once N days are done in a week, the habit can't be ticked again until Monday,
+  so "any 4 days" raises at most 4 buildings a week.
 - When a week ends (Sunday midnight), each day short of N counts as one more miss in a row,
   and the usual damage table applies: N of 5 or more is the "5, 6 or 7 days" row, N of 4 or fewer is the other row.
   Example for 4 a week: 3 days done is 1 miss (newest building to 50%), 2 days done is 2 misses (ruined).
@@ -28,11 +32,16 @@ All numbers live in `src/lib/game/config.ts`. Rules are pure functions in
 
 ## Completing a habit
 - Today only (no backfill). One completion per habit per day.
-- Always places one building at the next free cell, spiralling out from the city centre.
+- Every completed habit-day places exactly one building at the next free cell,
+  spiralling out from the city centre. Three habits done today = three buildings.
 - Type comes from category: body→gym, mind→library, work→office, social→plaza,
   creative→studio, home→house, other→shop.
-- Height tier comes from lifetime completions: 1 / 25 / 100 / 250 / 500 / 1000
-  → tiers 1–6. Existing buildings keep their height.
+- Every habit building is the same size (changed 2026-11-23, replacing the old
+  1/25/100/250/500/1000 height tiers): one 3-D block, same height and footprint,
+  with exactly 4 windows (2 across, 2 up) on each visible wall. The type only
+  changes its colour. Damage never changes its size: a damaged building gets a
+  dashed amber roof edge, a crack and a dark window per wall; a ruined one turns
+  grey with all windows dark. Numbers live in `BUILDING` in `config.ts`.
 - Un-ticking today removes the building that completion raised.
 
 ## Damage (Mahakksh's rules, 2026-11-16)

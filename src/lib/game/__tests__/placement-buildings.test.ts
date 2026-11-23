@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildingTypeFor, heightTierFor } from "../buildings";
+import { buildingTypeFor } from "../buildings";
 import { CITY_GRID_SIZE, PROMOTION_THRESHOLD } from "../config";
 import { cellKey, nextFreeCell, nextFreeCells, spiralOrder } from "../placement";
 
@@ -43,16 +43,9 @@ describe("nextFreeCell", () => {
   });
 });
 
-describe("building type and height", () => {
+describe("building type", () => {
   it("maps category to type", () => {
     expect(buildingTypeFor("body")).toBe("gym");
     expect(buildingTypeFor("mind")).toBe("library");
-  });
-  it("grows taller with lifetime completions", () => {
-    expect(heightTierFor(0)).toBe(1);
-    expect(heightTierFor(24)).toBe(1);
-    expect(heightTierFor(25)).toBe(2);
-    expect(heightTierFor(1000)).toBe(6);
-    expect(heightTierFor(1e6)).toBe(6);
   });
 });
